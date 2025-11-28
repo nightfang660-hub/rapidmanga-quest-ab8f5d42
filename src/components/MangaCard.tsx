@@ -10,29 +10,42 @@ interface MangaCardProps {
 export const MangaCard = ({ manga }: MangaCardProps) => {
   return (
     <Link to={`/manga/${manga.id}`}>
-      <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 h-full">
-        <div className="relative aspect-[3/4] overflow-hidden">
+      <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 h-full border-border/50 hover:border-primary/50">
+        <div className="relative aspect-[2/3] overflow-hidden bg-muted">
           <img
             src={manga.thumb}
             alt={manga.title}
-            className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+            className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
             loading="lazy"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           {manga.nsfw && (
-            <Badge variant="destructive" className="absolute top-2 right-2">
+            <Badge variant="destructive" className="absolute top-2 right-2 shadow-lg">
               18+
             </Badge>
           )}
+          {manga.status && (
+            <Badge className="absolute top-2 left-2 bg-primary/90 shadow-lg">
+              {manga.status}
+            </Badge>
+          )}
         </div>
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-sm line-clamp-2 mb-2">{manga.title}</h3>
+        <CardContent className="p-3">
+          <h3 className="font-bold text-sm line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+            {manga.title}
+          </h3>
           {manga.genres && manga.genres.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {manga.genres.slice(0, 3).map((genre, index) => (
+              {manga.genres.slice(0, 2).map((genre, index) => (
                 <Badge key={index} variant="secondary" className="text-xs">
                   {genre}
                 </Badge>
               ))}
+              {manga.genres.length > 2 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{manga.genres.length - 2}
+                </Badge>
+              )}
             </div>
           )}
         </CardContent>

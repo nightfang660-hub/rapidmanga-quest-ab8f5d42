@@ -38,42 +38,38 @@ const Index = () => {
     }
   };
 
-  const handleSearch = async (query: string) => {
-    setIsLoading(true);
-    try {
-      const response = await mangaApi.searchManga(query);
-      setManga(response.data || []);
-      setActiveTab("search");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Search failed. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSearch = (query: string) => {
+    navigate(`/search?query=${encodeURIComponent(query)}`);
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-        <div className="container mx-auto px-4 py-4">
+      <header className="border-b sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 shadow-sm">
+        <div className="container mx-auto px-4 py-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-6 w-6" />
-              <h1 className="text-2xl font-bold">MangaVerse</h1>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <BookOpen className="h-7 w-7 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">MangaVerse</h1>
+                <p className="text-xs text-muted-foreground">Your digital manga library</p>
+              </div>
             </div>
           </div>
-          <SearchBar onSearch={handleSearch} />
+          <SearchBar onSearch={handleSearch} placeholder="Search thousands of manga..." />
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-          <TabsList>
-            <TabsTrigger value="latest">Latest</TabsTrigger>
-            <TabsTrigger value="popular">Popular</TabsTrigger>
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="latest" className="text-base">
+              Latest Releases
+            </TabsTrigger>
+            <TabsTrigger value="popular" className="text-base">
+              Popular Now
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 

@@ -15,6 +15,7 @@ export const SearchBar = ({ onSearch, placeholder = "Search manga..." }: SearchB
     e.preventDefault();
     if (query.trim()) {
       onSearch(query.trim());
+      setQuery("");
     }
   };
 
