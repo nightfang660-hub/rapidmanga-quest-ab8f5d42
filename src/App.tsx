@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
+import SearchResults from "./pages/SearchResults";
 import MangaDetail from "./pages/MangaDetail";
 import ChapterReader from "./pages/ChapterReader";
 import NotFound from "./pages/NotFound";
@@ -18,6 +19,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/search" element={<SearchResults />} />
           <Route path="/manga/:id" element={<MangaDetail />} />
           <Route path="/chapter/:chapterId" element={<ChapterReader />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
