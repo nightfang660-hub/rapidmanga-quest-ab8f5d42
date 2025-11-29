@@ -1,13 +1,30 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Manga } from "@/services/mangaApi";
+import { useBookmarks } from "@/hooks/useBookmarks";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 
 interface MangaCardProps {
   manga: Manga;
 }
 
 export const MangaCard = ({ manga }: MangaCardProps) => {
+  const { isBookmarked, addBookmark, removeBookmark } = useBookmarks();
+  const bookmarked = isBookmarked(manga.id);
+
+  const handleBookmark = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (bookmarked) {
+      removeBookmark(manga.id);
+    } else {
+      addBookmark(manga);
+    }
+  };
+
   return (
     <Link to={`/manga/${manga.id}`}>
       <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 h-full border-border/50 hover:border-primary/50">
@@ -19,13 +36,25 @@ export const MangaCard = ({ manga }: MangaCardProps) => {
             loading="lazy"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <Button
+            size="icon"
+            variant="secondary"
+            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+            onClick={handleBookmark}
+          >
+            {bookmarked ? (
+              <BookmarkCheck className="h-4 w-4" />
+            ) : (
+              <Bookmark className="h-4 w-4" />
+            )}
+          </Button>
           {manga.nsfw && (
-            <Badge variant="destructive" className="absolute top-2 right-2 shadow-lg">
+            <Badge variant="destructive" className="absolute top-2 left-2 shadow-lg">
               18+
             </Badge>
           )}
           {manga.status && (
-            <Badge className="absolute top-2 left-2 bg-primary/90 shadow-lg">
+            <Badge className="absolute bottom-2 left-2 bg-primary/90 shadow-lg">
               {manga.status}
             </Badge>
           )}

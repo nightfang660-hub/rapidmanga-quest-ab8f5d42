@@ -1,20 +1,27 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { mangaApi, ChapterImage } from "@/services/mangaApi";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useReadingProgress } from "@/hooks/useReadingProgress";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft } from "lucide-react";
 
 const ChapterReader = () => {
   const { chapterId } = useParams<{ chapterId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { updateProgress } = useReadingProgress();
   const [images, setImages] = useState<ChapterImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (chapterId) {
       loadChapterImages();
+      trackReadingHistory();
     }
   }, [chapterId]);
 
@@ -31,6 +38,45 @@ const ChapterReader = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const trackReadingHistory = async () => {
+    if (!user) return;
+    
+    const mangaId = searchParams.get("mangaId");
+    const mangaTitle = searchParams.get("mangaTitle");
+    const mangaThumb = searchParams.get("mangaThumb");
+    const chapterTitle = searchParams.get("chapterTitle");
+    const chapterNumber = searchParams.get("chapterNumber");
+    const totalChapters = searchParams.get("totalChapters");
+
+    if (!mangaId || !mangaTitle) return;
+
+    try {
+      await supabase.from("reading_history").upsert({
+        user_id: user.id,
+        manga_id: mangaId,
+        manga_title: mangaTitle,
+        manga_thumb: mangaThumb || "",
+        chapter_id: chapterId!,
+        chapter_title: chapterTitle || `Chapter ${chapterNumber}`,
+        chapter_number: chapterNumber || "",
+      });
+
+      if (chapterNumber && totalChapters) {
+        await updateProgress({
+          mangaId,
+          mangaTitle,
+          mangaThumb: mangaThumb || "",
+          chapterId: chapterId!,
+          chapterTitle: chapterTitle || `Chapter ${chapterNumber}`,
+          chapterNumber,
+          totalChapters: parseInt(totalChapters),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to track reading:", error);
     }
   };
 
