@@ -3,9 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { mangaApi, Manga } from "@/services/mangaApi";
 import { MangaGrid } from "@/components/MangaGrid";
 import { SearchBar } from "@/components/SearchBar";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, ArrowLeft } from "lucide-react";
 
 const SearchResults = () => {
   const [searchParams] = useSearchParams();
@@ -44,42 +42,26 @@ const SearchResults = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4 mb-4">
-            <Button variant="ghost" onClick={() => navigate("/")} size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-6 w-6" />
-              <h1 className="text-2xl font-bold">MangaVerse</h1>
-            </div>
-          </div>
+      <header className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background">
+        <div className="container mx-auto px-4 py-6">
+          <h1 className="text-3xl font-bold mb-4">Search Results</h1>
           <SearchBar onSearch={handleSearch} placeholder="Search manga..." />
+          {query && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Showing results for: <span className="font-semibold">{query}</span>
+            </p>
+          )}
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {query && (
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2">
-              Search Results for "{query}"
-            </h2>
-            <p className="text-muted-foreground">
-              {!isLoading && manga.length > 0 && `Found ${manga.length} results`}
-              {!isLoading && manga.length === 0 && "No results found"}
-            </p>
-          </div>
-        )}
-
         <MangaGrid manga={manga} isLoading={isLoading} />
 
         {!isLoading && manga.length === 0 && query && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">
-              Try searching with different keywords
+            <p className="text-lg text-muted-foreground">
+              No manga found for "{query}". Try searching with different keywords.
             </p>
-            <Button onClick={() => navigate("/")}>Back to Home</Button>
           </div>
         )}
       </main>
