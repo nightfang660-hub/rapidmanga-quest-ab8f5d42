@@ -13,6 +13,7 @@ import MangaDetail from "./pages/MangaDetail";
 import ChapterReader from "./pages/ChapterReader";
 import Library from "./pages/Library";
 import Profile from "./pages/Profile";
+import Bookmarks from "./pages/Bookmarks";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -64,6 +65,16 @@ const App = () => (
                 <ProtectedRoute>
                   <MainLayout>
                     <Profile />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bookmarks"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Bookmarks />
                   </MainLayout>
                 </ProtectedRoute>
               }
