@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
+import { ReviewSection } from "@/components/ReviewSection";
 import { ArrowLeft, Book, Bookmark, BookmarkCheck, Play } from "lucide-react";
 
 const MangaDetail = () => {
@@ -201,6 +202,14 @@ const MangaDetail = () => {
               </Card>
             ))}
           </div>
+        </div>
+
+        <div className="mb-8">
+          <ReviewSection
+            mangaId={manga.id}
+            mangaTitle={manga.title}
+            mangaThumb={manga.thumb}
+          />
         </div>
 
         {recommendations.length > 0 && (

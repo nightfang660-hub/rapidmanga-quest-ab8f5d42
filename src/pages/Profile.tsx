@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, BookOpen, CheckCircle2, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ReadingGoals } from "@/components/ReadingGoals";
+import { RecommendationsSection } from "@/components/RecommendationsSection";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -90,6 +92,11 @@ const Profile = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        <div className="grid gap-6 mb-6 lg:grid-cols-2">
+          <ReadingGoals />
+          <RecommendationsSection />
+        </div>
+
         <Tabs defaultValue="reading" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="reading">Reading</TabsTrigger>

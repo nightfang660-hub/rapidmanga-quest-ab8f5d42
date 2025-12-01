@@ -4,6 +4,7 @@ import { mangaApi, ChapterImage } from "@/services/mangaApi";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
+import { useReadingGoals } from "@/hooks/useReadingGoals";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft } from "lucide-react";
@@ -15,6 +16,7 @@ const ChapterReader = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { updateProgress } = useReadingProgress();
+  const { getActiveGoal, updateProgress: updateGoalProgress } = useReadingGoals();
   const [images, setImages] = useState<ChapterImage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -74,6 +76,12 @@ const ChapterReader = () => {
           chapterNumber,
           totalChapters: parseInt(totalChapters),
         });
+
+        // Update reading goal progress
+        const activeGoal = getActiveGoal();
+        if (activeGoal) {
+          await updateGoalProgress(activeGoal.id, 1);
+        }
       }
     } catch (error) {
       console.error("Failed to track reading:", error);

@@ -44,6 +44,42 @@ export type Database = {
         }
         Relationships: []
       }
+      manga_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          manga_id: string
+          manga_thumb: string | null
+          manga_title: string
+          rating: number
+          review_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          manga_id: string
+          manga_thumb?: string | null
+          manga_title: string
+          rating: number
+          review_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          manga_id?: string
+          manga_thumb?: string | null
+          manga_title?: string
+          rating?: number
+          review_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -65,6 +101,42 @@ export type Database = {
           id?: string
           updated_at?: string
           username?: string | null
+        }
+        Relationships: []
+      }
+      reading_goals: {
+        Row: {
+          created_at: string
+          current_progress: number
+          end_date: string | null
+          goal_type: string
+          id: string
+          start_date: string
+          target_chapters: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_progress?: number
+          end_date?: string | null
+          goal_type?: string
+          id?: string
+          start_date?: string
+          target_chapters?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_progress?: number
+          end_date?: string | null
+          goal_type?: string
+          id?: string
+          start_date?: string
+          target_chapters?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

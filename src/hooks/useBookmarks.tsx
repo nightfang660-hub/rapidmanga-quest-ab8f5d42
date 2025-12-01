@@ -53,7 +53,8 @@ export const useBookmarks = () => {
     if (!user) return;
 
     try {
-      const { error } = await supabase.from("bookmarks").insert({
+      // Add to bookmarks
+      const { error: bookmarkError } = await supabase.from("bookmarks").insert({
         user_id: user.id,
         manga_id: manga.id,
         manga_title: manga.title,
@@ -61,7 +62,23 @@ export const useBookmarks = () => {
         manga_genres: manga.genres || [],
       });
 
-      if (error) throw error;
+      if (bookmarkError) throw bookmarkError;
+
+      // Also add to reading_progress with plan_to_read status
+      const { error: progressError } = await supabase.from("reading_progress").upsert({
+        user_id: user.id,
+        manga_id: manga.id,
+        manga_title: manga.title,
+        manga_thumb: manga.thumb,
+        current_chapter_id: "",
+        current_chapter_title: "",
+        current_chapter_number: "0",
+        total_chapters: 0,
+        progress_percentage: 0,
+        status: "plan_to_read",
+      });
+
+      if (progressError) throw progressError;
 
       toast({
         title: "Bookmarked!",
