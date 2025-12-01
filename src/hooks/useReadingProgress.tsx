@@ -56,9 +56,18 @@ export const useReadingProgress = () => {
     if (!user) return;
 
     try {
+      const chapterNum = parseInt(params.chapterNumber) || 0;
       const progressPercentage = params.totalChapters > 0
-        ? Math.round((parseInt(params.chapterNumber) / params.totalChapters) * 100)
+        ? Math.round((chapterNum / params.totalChapters) * 100)
         : 0;
+
+      // Determine status based on progress
+      let status: "reading" | "completed" | "plan_to_read" = "reading";
+      if (progressPercentage >= 100) {
+        status = "completed";
+      } else if (chapterNum > 0) {
+        status = "reading";
+      }
 
       const { error } = await supabase.from("reading_progress").upsert({
         user_id: user.id,
@@ -70,7 +79,7 @@ export const useReadingProgress = () => {
         current_chapter_number: params.chapterNumber,
         total_chapters: params.totalChapters,
         progress_percentage: progressPercentage,
-        status: progressPercentage >= 100 ? "completed" : "reading",
+        status: status,
       });
 
       if (error) throw error;
