@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useReadingGoals } from "@/hooks/useReadingGoals";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { Target, Plus, Trash2 } from "lucide-react";
+import { Target, Plus, Trash2, Trophy } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export const ReadingGoals = () => {
@@ -13,8 +13,16 @@ export const ReadingGoals = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [goalType, setGoalType] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
   const [targetChapters, setTargetChapters] = useState("10");
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const activeGoal = getActiveGoal();
+
+  useEffect(() => {
+    if (activeGoal && activeGoal.current_progress >= activeGoal.target_chapters) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 3000);
+    }
+  }, [activeGoal?.current_progress]);
 
   const handleCreateGoal = async () => {
     await createGoal({
@@ -78,7 +86,16 @@ export const ReadingGoals = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         {activeGoal && (
-          <div className="p-4 bg-primary/10 rounded-lg space-y-3">
+          <div className="relative p-4 bg-primary/10 rounded-lg space-y-3 overflow-hidden">
+            {showCelebration && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/90 backdrop-blur z-10 animate-in fade-in">
+                <div className="text-center">
+                  <Trophy className="h-16 w-16 text-yellow-500 mx-auto mb-2 animate-bounce" />
+                  <p className="text-2xl font-bold text-primary">Goal Completed! 🎉</p>
+                  <p className="text-muted-foreground">Amazing work!</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-semibold capitalize">{activeGoal.goal_type} Goal</p>
@@ -96,6 +113,7 @@ export const ReadingGoals = () => {
             </div>
             <Progress
               value={(activeGoal.current_progress / activeGoal.target_chapters) * 100}
+              className="transition-all duration-500"
             />
             {activeGoal.end_date && (
               <p className="text-xs text-muted-foreground">
