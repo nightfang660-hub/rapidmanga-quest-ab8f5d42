@@ -7,6 +7,8 @@ import { User, BookOpen, CheckCircle2, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ReadingGoals } from "@/components/ReadingGoals";
 import { RecommendationsSection } from "@/components/RecommendationsSection";
+import { ReadingHistoryTimeline } from "@/components/ReadingHistoryTimeline";
+import { SocialFeatures } from "@/components/SocialFeatures";
 
 const Profile = () => {
   const { user } = useAuth();
@@ -95,6 +97,11 @@ const Profile = () => {
         <div className="grid gap-6 mb-6 lg:grid-cols-2">
           <ReadingGoals />
           <RecommendationsSection />
+        </div>
+
+        <div className="grid gap-6 mb-6 lg:grid-cols-2">
+          <ReadingHistoryTimeline />
+          <SocialFeatures />
         </div>
 
         <Tabs defaultValue="reading" className="w-full">

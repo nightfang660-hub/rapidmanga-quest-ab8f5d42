@@ -14,6 +14,7 @@ import ChapterReader from "./pages/ChapterReader";
 import Library from "./pages/Library";
 import Profile from "./pages/Profile";
 import Bookmarks from "./pages/Bookmarks";
+import Discovery from "./pages/Discovery";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -75,6 +76,16 @@ const App = () => (
                 <ProtectedRoute>
                   <MainLayout>
                     <Bookmarks />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/discovery"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Discovery />
                   </MainLayout>
                 </ProtectedRoute>
               }

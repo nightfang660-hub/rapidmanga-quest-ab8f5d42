@@ -97,22 +97,22 @@ const ChapterReader = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      <header className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur z-10 p-4">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="text-white">
+    <div className="fixed inset-0 bg-black overflow-hidden">
+      <header className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur z-20 p-2 md:p-4">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="text-white hover:bg-white/10">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
       </header>
 
-      <main className="pt-16 pb-8">
-        <div className="max-w-4xl mx-auto px-4">
+      <main className="fixed inset-0 pt-14 md:pt-16 overflow-y-auto">
+        <div className="flex flex-col items-center w-full">
           {images.map((image, index) => (
             <img
               key={index}
               src={image.link}
               alt={`Page ${index + 1}`}
-              className="w-full mb-1"
+              className="w-full max-w-4xl object-contain"
               loading="lazy"
             />
           ))}

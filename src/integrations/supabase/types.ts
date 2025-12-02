@@ -44,6 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      downloaded_chapters: {
+        Row: {
+          chapter_data: Json
+          chapter_id: string
+          chapter_title: string
+          downloaded_at: string
+          id: string
+          manga_id: string
+          user_id: string
+        }
+        Insert: {
+          chapter_data: Json
+          chapter_id: string
+          chapter_title: string
+          downloaded_at?: string
+          id?: string
+          manga_id: string
+          user_id: string
+        }
+        Update: {
+          chapter_data?: Json
+          chapter_id?: string
+          chapter_title?: string
+          downloaded_at?: string
+          id?: string
+          manga_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       manga_reviews: {
         Row: {
           created_at: string
@@ -221,6 +251,63 @@ export type Database = {
           total_chapters?: number | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      shared_recommendations: {
+        Row: {
+          created_at: string
+          id: string
+          is_public: boolean | null
+          manga_id: string
+          manga_thumb: string | null
+          manga_title: string
+          recommendation_text: string | null
+          shared_with_user_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_public?: boolean | null
+          manga_id: string
+          manga_thumb?: string | null
+          manga_title: string
+          recommendation_text?: string | null
+          shared_with_user_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_public?: boolean | null
+          manga_id?: string
+          manga_thumb?: string | null
+          manga_title?: string
+          recommendation_text?: string | null
+          shared_with_user_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
         }
         Relationships: []
       }
