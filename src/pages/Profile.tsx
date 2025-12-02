@@ -1,28 +1,33 @@
 import { useReadingProgress } from "@/hooks/useReadingProgress";
 import { useAuth } from "@/hooks/useAuth";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useProfile } from "@/hooks/useProfile";
+import { useSocialFeatures } from "@/hooks/useSocialFeatures";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, BookOpen, CheckCircle2, Clock } from "lucide-react";
+import { User, Users, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ReadingGoals } from "@/components/ReadingGoals";
 import { RecommendationsSection } from "@/components/RecommendationsSection";
 import { ReadingHistoryTimeline } from "@/components/ReadingHistoryTimeline";
-import { SocialFeatures } from "@/components/SocialFeatures";
+import { useEffect } from "react";
 
 const Profile = () => {
   const { user } = useAuth();
+  const { profile, isLoading: profileLoading, updateReadingStats } = useProfile();
   const { progressList, isLoading } = useReadingProgress();
+  const { followers, following } = useSocialFeatures();
+
+  useEffect(() => {
+    if (user) {
+      updateReadingStats();
+    }
+  }, [user]);
 
   const readingManga = progressList.filter((p) => p.status === "reading");
   const completedManga = progressList.filter((p) => p.status === "completed");
   const planToRead = progressList.filter((p) => p.status === "plan_to_read");
-
-  const stats = [
-    { label: "Reading", value: readingManga.length, icon: BookOpen, color: "text-primary" },
-    { label: "Completed", value: completedManga.length, icon: CheckCircle2, color: "text-green-500" },
-    { label: "Plan to Read", value: planToRead.length, icon: Clock, color: "text-yellow-500" },
-  ];
 
   const ProgressCard = ({ item }: { item: any }) => (
     <Link to={`/manga/${item.manga_id}`}>
@@ -57,7 +62,7 @@ const Profile = () => {
     </Link>
   );
 
-  if (isLoading) {
+  if (isLoading || profileLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading profile...</div>
@@ -65,89 +70,124 @@ const Profile = () => {
     );
   }
 
+  const displayName = profile?.display_name || profile?.username || "User";
+  const initials = displayName.slice(0, 2).toUpperCase();
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-10 w-10 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold mb-1">Your Profile</h1>
-              <p className="text-muted-foreground">{user?.email}</p>
-            </div>
-          </div>
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Instagram-like Profile Header */}
+        <div className="mb-8">
+          <div className="flex items-start gap-8 mb-6">
+            <Avatar className="h-32 w-32 border-4 border-primary/20">
+              <AvatarImage src={profile?.avatar_url || ""} alt={displayName} />
+              <AvatarFallback className="text-2xl bg-primary/10 text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
 
-          <div className="grid grid-cols-3 gap-4">
-            {stats.map((stat) => (
-              <Card key={stat.label}>
-                <CardContent className="p-4 text-center">
-                  <stat.icon className={`h-6 w-6 mx-auto mb-2 ${stat.color}`} />
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                </CardContent>
-              </Card>
-            ))}
+            <div className="flex-1">
+              <div className="flex items-center gap-4 mb-4">
+                <h1 className="text-2xl font-bold">{displayName}</h1>
+                <Button variant="outline" size="sm">Edit Profile</Button>
+              </div>
+
+              {/* Stats Row */}
+              <div className="flex gap-8 mb-4">
+                <div className="text-center">
+                  <p className="text-xl font-bold">{profile?.total_manga_read || 0}</p>
+                  <p className="text-sm text-muted-foreground">manga</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold">{followers.length}</p>
+                  <p className="text-sm text-muted-foreground">followers</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-bold">{following.length}</p>
+                  <p className="text-sm text-muted-foreground">following</p>
+                </div>
+              </div>
+
+              {/* User Info */}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">{user?.email}</p>
+                {profile?.bio && (
+                  <p className="text-sm">{profile.bio}</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-6 mb-6 lg:grid-cols-2">
+        {/* Reading Goals Section */}
+        <div className="mb-8">
           <ReadingGoals />
+        </div>
+
+        {/* Reading History Section */}
+        <div className="mb-8">
+          <ReadingHistoryTimeline />
+        </div>
+
+        {/* Social Recommendations Section */}
+        <div className="mb-8">
           <RecommendationsSection />
         </div>
 
-        <div className="grid gap-6 mb-6 lg:grid-cols-2">
-          <ReadingHistoryTimeline />
-          <SocialFeatures />
+        {/* Reading Stats Tabs - Based on Reading History */}
+        <div className="border-t pt-8">
+          <h2 className="text-xl font-bold mb-4">Reading Stats</h2>
+          <Tabs defaultValue="reading" className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="reading">
+                Reading ({readingManga.length})
+              </TabsTrigger>
+              <TabsTrigger value="completed">
+                Completed ({completedManga.length})
+              </TabsTrigger>
+              <TabsTrigger value="plan">
+                Plan to Read ({planToRead.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="reading" className="mt-6">
+              <div className="grid gap-4">
+                {readingManga.length > 0 ? (
+                  readingManga.map((item) => <ProgressCard key={item.id} item={item} />)
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No manga in reading list. Start reading to see them here!
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="completed" className="mt-6">
+              <div className="grid gap-4">
+                {completedManga.length > 0 ? (
+                  completedManga.map((item) => <ProgressCard key={item.id} item={item} />)
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No completed manga yet. Keep reading!
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="plan" className="mt-6">
+              <div className="grid gap-4">
+                {planToRead.length > 0 ? (
+                  planToRead.map((item) => <ProgressCard key={item.id} item={item} />)
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    No manga in your plan to read list.
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
-
-        <Tabs defaultValue="reading" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="reading">Reading</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-            <TabsTrigger value="plan">Plan to Read</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="reading" className="mt-6">
-            <div className="grid gap-4">
-              {readingManga.length > 0 ? (
-                readingManga.map((item) => <ProgressCard key={item.id} item={item} />)
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  No manga in reading list. Start reading to see them here!
-                </p>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="completed" className="mt-6">
-            <div className="grid gap-4">
-              {completedManga.length > 0 ? (
-                completedManga.map((item) => <ProgressCard key={item.id} item={item} />)
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  No completed manga yet. Keep reading!
-                </p>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="plan" className="mt-6">
-            <div className="grid gap-4">
-              {planToRead.length > 0 ? (
-                planToRead.map((item) => <ProgressCard key={item.id} item={item} />)
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  No manga in your plan to read list.
-                </p>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+      </div>
     </div>
   );
 };

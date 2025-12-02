@@ -113,22 +113,40 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
+          display_name: string | null
           id: string
+          last_read_date: string | null
+          reading_streak: number | null
+          total_chapters_read: number | null
+          total_manga_read: number | null
           updated_at: string
           username: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          display_name?: string | null
           id: string
+          last_read_date?: string | null
+          reading_streak?: number | null
+          total_chapters_read?: number | null
+          total_manga_read?: number | null
           updated_at?: string
           username?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
+          last_read_date?: string | null
+          reading_streak?: number | null
+          total_chapters_read?: number | null
+          total_manga_read?: number | null
           updated_at?: string
           username?: string | null
         }
