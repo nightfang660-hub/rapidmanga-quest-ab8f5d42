@@ -15,6 +15,7 @@ import Library from "./pages/Library";
 import Profile from "./pages/Profile";
 import Bookmarks from "./pages/Bookmarks";
 import Discovery from "./pages/Discovery";
+import UserProfile from "./pages/UserProfile";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -96,6 +97,16 @@ const App = () => (
                 <ProtectedRoute>
                   <MainLayout>
                     <MangaDetail />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user/:userId"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <UserProfile />
                   </MainLayout>
                 </ProtectedRoute>
               }

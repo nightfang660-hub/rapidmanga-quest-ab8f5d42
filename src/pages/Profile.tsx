@@ -2,15 +2,18 @@ import { useReadingProgress } from "@/hooks/useReadingProgress";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { useSocialFeatures } from "@/hooks/useSocialFeatures";
+import { useAchievements } from "@/hooks/useAchievements";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Users, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ReadingGoals } from "@/components/ReadingGoals";
 import { RecommendationsSection } from "@/components/RecommendationsSection";
 import { ReadingHistoryTimeline } from "@/components/ReadingHistoryTimeline";
+import { ProfileEdit } from "@/components/ProfileEdit";
+import { AchievementBadges } from "@/components/AchievementBadges";
+import { Leaderboard } from "@/components/Leaderboard";
+import { UserRecommendations } from "@/components/UserRecommendations";
 import { useEffect } from "react";
 
 const Profile = () => {
@@ -18,12 +21,19 @@ const Profile = () => {
   const { profile, isLoading: profileLoading, updateReadingStats } = useProfile();
   const { progressList, isLoading } = useReadingProgress();
   const { followers, following } = useSocialFeatures();
+  const { checkAndAwardAchievements } = useAchievements();
 
   useEffect(() => {
-    if (user) {
+    if (user && profile) {
       updateReadingStats();
+      checkAndAwardAchievements({
+        manga_completed: profile.total_manga_read || 0,
+        chapters_read: profile.total_chapters_read || 0,
+        streak: profile.reading_streak || 0,
+        followers: followers.length,
+      });
     }
-  }, [user]);
+  }, [user, profile?.total_manga_read, followers.length]);
 
   const readingManga = progressList.filter((p) => p.status === "reading");
   const completedManga = progressList.filter((p) => p.status === "completed");
@@ -78,33 +88,33 @@ const Profile = () => {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Instagram-like Profile Header */}
         <div className="mb-8">
-          <div className="flex items-start gap-8 mb-6">
-            <Avatar className="h-32 w-32 border-4 border-primary/20">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 mb-6">
+            <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary/20">
               <AvatarImage src={profile?.avatar_url || ""} alt={displayName} />
               <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                 {initials}
               </AvatarFallback>
             </Avatar>
 
-            <div className="flex-1">
-              <div className="flex items-center gap-4 mb-4">
-                <h1 className="text-2xl font-bold">{displayName}</h1>
-                <Button variant="outline" size="sm">Edit Profile</Button>
+            <div className="flex-1 text-center sm:text-left">
+              <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
+                <h1 className="text-xl sm:text-2xl font-bold">{displayName}</h1>
+                <ProfileEdit />
               </div>
 
               {/* Stats Row */}
-              <div className="flex gap-8 mb-4">
+              <div className="flex justify-center sm:justify-start gap-6 sm:gap-8 mb-4">
                 <div className="text-center">
-                  <p className="text-xl font-bold">{profile?.total_manga_read || 0}</p>
-                  <p className="text-sm text-muted-foreground">manga</p>
+                  <p className="text-lg sm:text-xl font-bold">{profile?.total_manga_read || 0}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">manga</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold">{followers.length}</p>
-                  <p className="text-sm text-muted-foreground">followers</p>
+                  <p className="text-lg sm:text-xl font-bold">{followers.length}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">followers</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold">{following.length}</p>
-                  <p className="text-sm text-muted-foreground">following</p>
+                  <p className="text-lg sm:text-xl font-bold">{following.length}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">following</p>
                 </div>
               </div>
 
@@ -132,6 +142,21 @@ const Profile = () => {
         {/* Social Recommendations Section */}
         <div className="mb-8">
           <RecommendationsSection />
+        </div>
+
+        {/* Achievement Badges */}
+        <div className="mb-8">
+          <AchievementBadges />
+        </div>
+
+        {/* User Recommendations */}
+        <div className="mb-8">
+          <UserRecommendations />
+        </div>
+
+        {/* Leaderboard */}
+        <div className="mb-8">
+          <Leaderboard />
         </div>
 
         {/* Reading Stats Tabs - Based on Reading History */}

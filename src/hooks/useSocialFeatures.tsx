@@ -65,6 +65,15 @@ export const useSocialFeatures = () => {
 
       if (error) throw error;
 
+      // Create notification for the followed user
+      await supabase.from("notifications").insert({
+        user_id: followingId,
+        type: "follow",
+        title: "New Follower",
+        message: "Someone started following you!",
+        related_user_id: user.id,
+      });
+
       toast({
         title: "Success",
         description: "You are now following this user",
@@ -129,6 +138,17 @@ export const useSocialFeatures = () => {
       });
 
       if (error) throw error;
+
+      // Create notification for shared user if specified
+      if (params.sharedWithUserId) {
+        await supabase.from("notifications").insert({
+          user_id: params.sharedWithUserId,
+          type: "recommendation",
+          title: "New Recommendation",
+          message: `Someone recommended "${params.mangaTitle}" to you!`,
+          related_user_id: user.id,
+        });
+      }
 
       toast({
         title: "Success",

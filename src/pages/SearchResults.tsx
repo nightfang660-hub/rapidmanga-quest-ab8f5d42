@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { mangaApi, Manga } from "@/services/mangaApi";
 import { MangaGrid } from "@/components/MangaGrid";
-import { SearchBar } from "@/components/SearchBar";
+import { SearchWithTabs } from "@/components/SearchWithTabs";
 import { useToast } from "@/hooks/use-toast";
 
 const SearchResults = () => {
@@ -43,11 +43,11 @@ const SearchResults = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-        <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold mb-4">Search Results</h1>
-          <SearchBar onSearch={handleSearch} placeholder="Search manga..." />
+        <div className="container mx-auto px-4 py-4 sm:py-6">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-center sm:text-left">Search</h1>
+          <SearchWithTabs onMangaSearch={handleSearch} />
           {query && (
-            <p className="text-sm text-muted-foreground mt-2">
+            <p className="text-sm text-muted-foreground mt-4 text-center sm:text-left">
               Showing results for: <span className="font-semibold">{query}</span>
             </p>
           )}
