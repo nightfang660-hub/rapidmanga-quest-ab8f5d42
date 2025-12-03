@@ -2,10 +2,11 @@ import { ReactNode, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Home, Library, User, LogOut, Search, Bookmark } from "lucide-react";
+import { BookOpen, Home, Library, User, LogOut, Search, Bookmark, Compass } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { ReadingStats } from "@/components/ReadingStats";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import {
   Tooltip,
   TooltipContent,
@@ -45,6 +46,7 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
     { to: "/", icon: Home, label: "Home", shortcut: "Ctrl+H" },
     { to: "/library", icon: Library, label: "Library", shortcut: "Ctrl+L" },
     { to: "/bookmarks", icon: Bookmark, label: "Bookmarks", shortcut: "Ctrl+M" },
+    { to: "/discovery", icon: Compass, label: "Discover", shortcut: "Ctrl+D" },
     { to: "/search", icon: Search, label: "Search", shortcut: "Ctrl+K" },
     { to: "/profile", icon: User, label: "Profile", shortcut: "Ctrl+P" },
   ];
@@ -101,6 +103,7 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
                 <p className="text-xs text-muted-foreground">Read & Discover</p>
               </div>
             )}
+            <NotificationsDropdown />
             <ThemeToggle />
             <Tooltip>
               <TooltipTrigger asChild>

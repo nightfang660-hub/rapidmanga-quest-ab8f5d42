@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          achievement_description: string | null
+          achievement_name: string
+          achievement_type: string
+          earned_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          achievement_description?: string | null
+          achievement_name: string
+          achievement_type: string
+          earned_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          achievement_description?: string | null
+          achievement_name?: string
+          achievement_type?: string
+          earned_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           bookmarked_at: string
@@ -106,6 +133,39 @@ export type Database = {
           rating?: number
           review_text?: string | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message: string | null
+          related_user_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          related_user_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          related_user_id?: string | null
+          title?: string
+          type?: string
           user_id?: string
         }
         Relationships: []

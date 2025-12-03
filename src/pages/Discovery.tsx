@@ -82,8 +82,8 @@ const Discovery = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-        <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold mb-4">Discover Manga</h1>
+        <div className="container mx-auto px-4 py-4 sm:py-6">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-center sm:text-left">Discover Manga</h1>
           <SearchBar onSearch={handleSearch} placeholder="Search thousands of manga..." />
         </div>
       </header>
