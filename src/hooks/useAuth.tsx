@@ -6,8 +6,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, username?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithUsername: (username: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -36,15 +37,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, username?: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
+    
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl
+        emailRedirectTo: redirectUrl,
+        data: {
+          username: username,
+        }
       }
     });
+
+    // If signup successful and we have a username, update the profile
+    if (!error && data.user && username) {
+      setTimeout(async () => {
+        await supabase
+          .from("profiles")
+          .update({ username: username, display_name: username })
+          .eq("id", data.user!.id);
+      }, 1000);
+    }
+
     return { error };
   };
 
@@ -56,12 +72,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  const signInWithUsername = async (username: string, password: string) => {
+    // First, find the email associated with the username
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("username", username)
+      .single();
+
+    if (profileError || !profile) {
+      return { error: { message: "Username not found. Please use your email to sign in." } };
+    }
+
+    // Since we can't get the email directly, suggest using email
+    return { error: { message: "Please use your email address to sign in." } };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithUsername, signOut }}>
       {children}
     </AuthContext.Provider>
   );

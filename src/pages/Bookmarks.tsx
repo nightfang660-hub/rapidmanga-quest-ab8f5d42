@@ -37,31 +37,31 @@ const Bookmarks = () => {
   const BookmarkCard = ({ item }: { item: any }) => (
     <Link to={`/manga/${item.manga_id}`}>
       <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-        <CardContent className="p-4">
-          <div className="flex gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex gap-3 sm:gap-4">
             <img
               src={item.manga_thumb}
               alt={item.manga_title}
-              className="w-20 h-28 object-cover rounded"
+              className="w-16 h-22 sm:w-20 sm:h-28 object-cover rounded flex-shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold line-clamp-2 mb-2">{item.manga_title}</h3>
+              <h3 className="font-semibold line-clamp-2 mb-1 sm:mb-2 text-sm sm:text-base">{item.manga_title}</h3>
               {item.manga_genres && (
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {item.manga_genres.slice(0, 3).map((genre: string, idx: number) => (
-                    <span key={idx} className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                <div className="flex flex-wrap gap-1 mb-1 sm:mb-2">
+                  {item.manga_genres.slice(0, 2).map((genre: string, idx: number) => (
+                    <span key={idx} className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-primary/10 text-primary">
                       {genre}
                     </span>
                   ))}
                 </div>
               )}
               {item.progress && (
-                <div className="mt-2">
-                  <p className="text-sm text-muted-foreground mb-1">
+                <div className="mt-1 sm:mt-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">
                     Chapter {item.progress.current_chapter_number}
                   </p>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 sm:h-2 bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary transition-all"
                         style={{ width: `${item.progress.progress_percentage}%` }}
@@ -74,9 +74,9 @@ const Bookmarks = () => {
                 </div>
               )}
               {!item.progress && (
-                <Button size="sm" variant="outline" className="mt-2" asChild>
+                <Button size="sm" variant="outline" className="mt-1 sm:mt-2 h-7 sm:h-8 text-xs sm:text-sm" asChild>
                   <Link to={`/manga/${item.manga_id}`}>
-                    <BookOpen className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     Start Reading
                   </Link>
                 </Button>
@@ -99,14 +99,14 @@ const Bookmarks = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-primary/10">
-              <Bookmark className="h-8 w-8 text-primary" />
+        <div className="container mx-auto px-4 py-4 sm:py-8">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 rounded-full bg-primary/10">
+              <Bookmark className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">My Bookmarks</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-xl sm:text-3xl font-bold">My Bookmarks</h1>
+              <p className="text-sm text-muted-foreground">
                 {bookmarks.length} manga bookmarked
               </p>
             </div>
@@ -114,66 +114,74 @@ const Bookmarks = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-4 sm:py-8">
         <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-4">
-            <TabsTrigger value="all">All ({bookmarks.length})</TabsTrigger>
-            <TabsTrigger value="reading">Reading ({categorizedBookmarks.reading.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({categorizedBookmarks.completed.length})</TabsTrigger>
-            <TabsTrigger value="plan">Plan ({categorizedBookmarks.planToRead.length})</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-auto">
+            <TabsTrigger value="all" className="text-xs sm:text-sm py-2 px-1 sm:px-3">
+              All ({bookmarks.length})
+            </TabsTrigger>
+            <TabsTrigger value="reading" className="text-xs sm:text-sm py-2 px-1 sm:px-3">
+              Reading ({categorizedBookmarks.reading.length})
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs sm:text-sm py-2 px-1 sm:px-3">
+              Done ({categorizedBookmarks.completed.length})
+            </TabsTrigger>
+            <TabsTrigger value="plan" className="text-xs sm:text-sm py-2 px-1 sm:px-3">
+              Plan ({categorizedBookmarks.planToRead.length})
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="mt-6">
-            <div className="grid gap-4">
+          <TabsContent value="all" className="mt-4 sm:mt-6">
+            <div className="grid gap-3 sm:gap-4">
               {bookmarks.length > 0 ? (
                 bookmarks.map((item) => {
                   const progress = getProgressForManga(item.manga_id);
                   return <BookmarkCard key={item.id} item={{ ...item, progress }} />;
                 })
               ) : (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   No bookmarks yet. Start bookmarking manga you like!
                 </p>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="reading" className="mt-6">
-            <div className="grid gap-4">
+          <TabsContent value="reading" className="mt-4 sm:mt-6">
+            <div className="grid gap-3 sm:gap-4">
               {categorizedBookmarks.reading.length > 0 ? (
                 categorizedBookmarks.reading.map((item) => (
                   <BookmarkCard key={item.id} item={item} />
                 ))
               ) : (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   No manga currently reading. Start a manga to see it here!
                 </p>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="completed" className="mt-6">
-            <div className="grid gap-4">
+          <TabsContent value="completed" className="mt-4 sm:mt-6">
+            <div className="grid gap-3 sm:gap-4">
               {categorizedBookmarks.completed.length > 0 ? (
                 categorizedBookmarks.completed.map((item) => (
                   <BookmarkCard key={item.id} item={item} />
                 ))
               ) : (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   No completed manga yet. Keep reading!
                 </p>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="plan" className="mt-6">
-            <div className="grid gap-4">
+          <TabsContent value="plan" className="mt-4 sm:mt-6">
+            <div className="grid gap-3 sm:gap-4">
               {categorizedBookmarks.planToRead.length > 0 ? (
                 categorizedBookmarks.planToRead.map((item) => (
                   <BookmarkCard key={item.id} item={item} />
                 ))
               ) : (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   No planned manga. Bookmark some to read later!
                 </p>
               )}

@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Home, Library, User, LogOut, Search, Bookmark, Compass } from "lucide-react";
+import { BookOpen, Home, Library, User, LogOut, Search, Bookmark, Compass, MessageCircle } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { ReadingStats } from "@/components/ReadingStats";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -48,6 +48,7 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
     { to: "/bookmarks", icon: Bookmark, label: "Bookmarks", shortcut: "Ctrl+M" },
     { to: "/discovery", icon: Compass, label: "Discover", shortcut: "Ctrl+D" },
     { to: "/search", icon: Search, label: "Search", shortcut: "Ctrl+K" },
+    { to: "/chat", icon: MessageCircle, label: "Chat", shortcut: "Ctrl+C" },
     { to: "/profile", icon: User, label: "Profile", shortcut: "Ctrl+P" },
   ];
 
@@ -153,16 +154,6 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
         </SidebarContent>
 
         <SidebarFooter className="border-t p-4">
-          <div className="flex items-center gap-3 px-4 py-2 mb-2">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="h-4 w-4 text-primary" />
-            </div>
-            {!isCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.email}</p>
-              </div>
-            )}
-          </div>
           <Button
             variant="ghost"
             onClick={handleLogout}
@@ -174,26 +165,56 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
         </SidebarFooter>
       </Sidebar>
 
+      {/* Mobile Header with Notifications & Theme Toggle */}
+      <div className="md:hidden fixed top-0 left-0 right-0 bg-card border-b z-50 px-4 py-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <span className="font-bold">MangaVerse</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <NotificationsDropdown />
+            <ThemeToggle />
+          </div>
+        </div>
+      </div>
+
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-50">
-        <div className="flex items-center justify-around p-2">
-          {navItems.map((item) => (
+        <div className="flex items-center justify-around p-1">
+          {navItems.slice(0, 5).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === "/"}
-              className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg text-muted-foreground"
+              className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-muted-foreground"
               activeClassName="text-primary"
             >
               <item.icon className="h-5 w-5" />
-              <span className="text-xs">{item.label}</span>
+              <span className="text-[10px]">{item.label}</span>
             </NavLink>
           ))}
+          <NavLink
+            to="/chat"
+            className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-muted-foreground"
+            activeClassName="text-primary"
+          >
+            <MessageCircle className="h-5 w-5" />
+            <span className="text-[10px]">Chat</span>
+          </NavLink>
+          <NavLink
+            to="/profile"
+            className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-muted-foreground"
+            activeClassName="text-primary"
+          >
+            <User className="h-5 w-5" />
+            <span className="text-[10px]">Profile</span>
+          </NavLink>
         </div>
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto pb-20 md:pb-0">
+      <main className="flex-1 overflow-auto pt-12 pb-16 md:pt-0 md:pb-0">
         {children}
       </main>
     </div>

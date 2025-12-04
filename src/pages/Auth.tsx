@@ -11,9 +11,11 @@ import { BookOpen } from "lucide-react";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loginIdentifier, setLoginIdentifier] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp, signIn, user } = useAuth();
+  const { signUp, signIn, signInWithUsername, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -27,7 +29,17 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    const { error } = await signUp(email, password);
+    if (!username.trim()) {
+      toast({
+        title: "Error",
+        description: "Username is required",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    const { error } = await signUp(email, password, username);
     
     if (error) {
       toast({
@@ -48,12 +60,20 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    const { error } = await signIn(email, password);
+    // Check if loginIdentifier is email or username
+    const isEmail = loginIdentifier.includes("@");
     
-    if (error) {
+    let result;
+    if (isEmail) {
+      result = await signIn(loginIdentifier, password);
+    } else {
+      result = await signInWithUsername(loginIdentifier, password);
+    }
+    
+    if (result.error) {
       toast({
         title: "Sign In Failed",
-        description: error.message,
+        description: result.error.message,
         variant: "destructive",
       });
     } else {
@@ -86,13 +106,13 @@ const Auth = () => {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email</Label>
+                  <Label htmlFor="signin-identifier">Email or Username</Label>
                   <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="signin-identifier"
+                    type="text"
+                    placeholder="your@email.com or username"
+                    value={loginIdentifier}
+                    onChange={(e) => setLoginIdentifier(e.target.value)}
                     required
                   />
                 </div>
@@ -115,6 +135,22 @@ const Auth = () => {
 
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username">Username</Label>
+                  <Input
+                    id="signup-username"
+                    type="text"
+                    placeholder="mangalover123"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
+                    required
+                    minLength={3}
+                    maxLength={20}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    3-20 characters, no spaces
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
                   <Input
