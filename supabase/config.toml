@@ -1,1 +1,4 @@
 project_id = "iehgescmfbdrmqxwllhe"
+
+[functions.manga-proxy]
+verify_jwt = false

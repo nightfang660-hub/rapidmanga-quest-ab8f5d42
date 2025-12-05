@@ -1,11 +1,4 @@
-const API_BASE_URL = "https://mangaverse-api.p.rapidapi.com";
-const API_KEY = "2b3a28e179msh0db6e211caebe38p19826fjsn99f949c56d24";
-const API_HOST = "mangaverse-api.p.rapidapi.com";
-
-const headers = {
-  "x-rapidapi-key": API_KEY,
-  "x-rapidapi-host": API_HOST,
-};
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Manga {
   id: string;
@@ -30,102 +23,41 @@ export interface ChapterImage {
   link: string;
 }
 
+const callMangaProxy = async (action: string, params: Record<string, unknown>) => {
+  const { data, error } = await supabase.functions.invoke('manga-proxy', {
+    body: { action, params },
+  });
+
+  if (error) {
+    console.error('Manga proxy error:', error);
+    throw new Error(error.message || 'Failed to fetch from manga API');
+  }
+
+  return data;
+};
+
 export const mangaApi = {
   async fetchManga(page: number = 1, genres?: string, nsfw: boolean = false, type: string = "all") {
-    const querystring = new URLSearchParams({
-      page: page.toString(),
-      ...(genres && { genres }),
-      nsfw: nsfw.toString(),
-      type,
-    });
-
-    const response = await fetch(`${API_BASE_URL}/manga/fetch?${querystring}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch manga");
-    }
-
-    return response.json();
+    return callMangaProxy('fetch', { page, genres, nsfw, type });
   },
 
   async fetchLatest(page: number = 1, genres?: string, nsfw: boolean = false, type: string = "all") {
-    const querystring = new URLSearchParams({
-      page: page.toString(),
-      ...(genres && { genres }),
-      nsfw: nsfw.toString(),
-      type,
-    });
-
-    const response = await fetch(`${API_BASE_URL}/manga/latest?${querystring}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch latest manga");
-    }
-
-    return response.json();
+    return callMangaProxy('latest', { page, genres, nsfw, type });
   },
 
   async searchManga(text: string, nsfw: boolean = false, type: string = "all") {
-    const querystring = new URLSearchParams({
-      text,
-      nsfw: nsfw.toString(),
-      type,
-    });
-
-    const response = await fetch(`${API_BASE_URL}/manga/search?${querystring}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to search manga");
-    }
-
-    return response.json();
+    return callMangaProxy('search', { text, nsfw, type });
   },
 
   async getManga(id: string) {
-    const querystring = new URLSearchParams({ id });
-
-    const response = await fetch(`${API_BASE_URL}/manga?${querystring}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to get manga details");
-    }
-
-    return response.json();
+    return callMangaProxy('getManga', { id });
   },
 
   async fetchChapters(id: string) {
-    const querystring = new URLSearchParams({ id });
-
-    const response = await fetch(`${API_BASE_URL}/manga/chapter?${querystring}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch chapters");
-    }
-
-    return response.json();
+    return callMangaProxy('fetchChapters', { id });
   },
 
   async fetchChapterImages(id: string) {
-    const querystring = new URLSearchParams({ id });
-
-    const response = await fetch(`${API_BASE_URL}/manga/image?${querystring}`, {
-      headers,
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch chapter images");
-    }
-
-    return response.json();
+    return callMangaProxy('fetchChapterImages', { id });
   },
 };
