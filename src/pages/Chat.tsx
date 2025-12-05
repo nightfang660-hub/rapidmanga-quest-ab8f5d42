@@ -3,13 +3,13 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useChat } from "@/hooks/useChat";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useAuth } from "@/hooks/useAuth";
+import { useChatBackground } from "@/hooks/useChatBackground";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Send, Search, MessageCircle } from "lucide-react";
+import { ArrowLeft, Send, Search, MessageCircle, ImagePlus, X } from "lucide-react";
 import { format } from "date-fns";
 
 const Chat = () => {
@@ -17,12 +17,15 @@ const Chat = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { conversations, messages, isLoading, loadMessages, sendMessage } = useChat();
-  const { results, isSearching, searchUsers, clearResults } = useUserSearch();
+  const { results, searchUsers, clearResults } = useUserSearch();
+  const { backgroundUrl, isUploading, uploadBackground, removeBackground } = useChatBackground();
   
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showBackgroundSettings, setShowBackgroundSettings] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const partnerId = searchParams.get("user");
 
@@ -34,7 +37,10 @@ const Chat = () => {
   }, [partnerId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll to bottom when messages change
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const loadChatPartner = async (userId: string) => {
@@ -81,6 +87,14 @@ const Chat = () => {
     }
   };
 
+  const handleBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadBackground(file);
+      setShowBackgroundSettings(false);
+    }
+  };
+
   const getDisplayName = (item: any) => {
     return item.display_name || item.username || "User";
   };
@@ -99,23 +113,33 @@ const Chat = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-[calc(100vh-3rem)] md:h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-10">
+      <header className="border-b bg-card sticky top-0 z-10 shrink-0">
         <div className="container mx-auto px-4 py-3">
           {selectedUser ? (
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/chat")}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={selectedUser.avatar_url || ""} />
-                <AvatarFallback>{getInitials(selectedUser)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="font-semibold">{getDisplayName(selectedUser)}</h2>
-                <p className="text-xs text-muted-foreground">@{selectedUser.username || "user"}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button variant="ghost" size="icon" onClick={() => navigate("/chat")}>
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={selectedUser.avatar_url || ""} />
+                  <AvatarFallback>{getInitials(selectedUser)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h2 className="font-semibold">{getDisplayName(selectedUser)}</h2>
+                  <p className="text-xs text-muted-foreground">@{selectedUser.username || "user"}</p>
+                </div>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowBackgroundSettings(!showBackgroundSettings)}
+                title="Chat background"
+              >
+                <ImagePlus className="h-5 w-5" />
+              </Button>
             </div>
           ) : (
             <div className="flex items-center gap-3">
@@ -126,9 +150,55 @@ const Chat = () => {
         </div>
       </header>
 
+      {/* Background Settings Panel */}
+      {showBackgroundSettings && selectedUser && (
+        <div className="bg-card border-b p-4 shrink-0">
+          <div className="container mx-auto max-w-2xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <p className="text-sm font-medium">Chat Background</p>
+                {backgroundUrl && (
+                  <img 
+                    src={backgroundUrl} 
+                    alt="Current background" 
+                    className="h-10 w-10 rounded object-cover"
+                  />
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                >
+                  {isUploading ? "Uploading..." : "Upload Image"}
+                </Button>
+                {backgroundUrl && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeBackground}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleBackgroundUpload}
+                className="hidden"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {!selectedUser ? (
         // Conversation List View
-        <div className="flex-1 container mx-auto px-4 py-4">
+        <div className="flex-1 overflow-auto container mx-auto px-4 py-4">
           {/* Search Users */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -218,8 +288,18 @@ const Chat = () => {
         </div>
       ) : (
         // Chat View
-        <div className="flex-1 flex flex-col">
-          <ScrollArea className="flex-1 px-4 py-4">
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Messages Container with Background */}
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto px-4 py-4"
+            style={{
+              backgroundImage: backgroundUrl ? `url(${backgroundUrl})` : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }}
+          >
             <div className="space-y-3 max-w-2xl mx-auto">
               {messages.map((msg) => {
                 const isMine = msg.sender_id === user?.id;
@@ -229,10 +309,12 @@ const Chat = () => {
                     className={`flex ${isMine ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[80%] px-4 py-2 rounded-2xl ${
+                      className={`max-w-[80%] px-4 py-2 rounded-2xl shadow-sm ${
                         isMine
                           ? "bg-primary text-primary-foreground rounded-br-md"
-                          : "bg-muted rounded-bl-md"
+                          : backgroundUrl 
+                            ? "bg-card/95 backdrop-blur-sm rounded-bl-md"
+                            : "bg-muted rounded-bl-md"
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
@@ -247,12 +329,11 @@ const Chat = () => {
                   </div>
                 );
               })}
-              <div ref={messagesEndRef} />
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Message Input */}
-          <div className="border-t bg-card p-4">
+          <div className="border-t bg-card p-4 shrink-0">
             <div className="max-w-2xl mx-auto flex gap-2">
               <Input
                 placeholder="Type a message..."

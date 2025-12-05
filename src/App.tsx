@@ -17,6 +17,7 @@ import Profile from "./pages/Profile";
 import Bookmarks from "./pages/Bookmarks";
 import Discovery from "./pages/Discovery";
 import UserProfile from "./pages/UserProfile";
+import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -118,6 +119,16 @@ const App = () => (
                 <ProtectedRoute>
                   <MainLayout>
                     <Chat />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Settings />
                   </MainLayout>
                 </ProtectedRoute>
               }
