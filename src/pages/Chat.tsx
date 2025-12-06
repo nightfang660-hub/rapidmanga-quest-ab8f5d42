@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useChat } from "@/hooks/useChat";
 import { useUserSearch } from "@/hooks/useUserSearch";
@@ -9,14 +9,24 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Send, Search, MessageCircle, ImagePlus, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, Send, Search, MessageCircle, ImagePlus, X, Check, CheckCheck, Smile } from "lucide-react";
 import { format } from "date-fns";
+
+const REACTIONS = ["❤️", "👍", "😂", "😮", "😢", "🔥"];
+
+interface MessageReaction {
+  id: string;
+  message_id: string;
+  user_id: string;
+  reaction: string;
+}
 
 const Chat = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { conversations, messages, isLoading, loadMessages, sendMessage } = useChat();
+  const { conversations, messages, isLoading, loadMessages, sendMessage, markAsRead } = useChat();
   const { results, searchUsers, clearResults } = useUserSearch();
   const { backgroundUrl, isUploading, uploadBackground, removeBackground } = useChatBackground();
   
@@ -24,24 +34,64 @@ const Chat = () => {
   const [messageText, setMessageText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showBackgroundSettings, setShowBackgroundSettings] = useState(false);
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
+  const [reactions, setReactions] = useState<Record<string, MessageReaction[]>>({});
+  
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const partnerId = searchParams.get("user");
 
+  // Load chat partner and messages
   useEffect(() => {
     if (partnerId) {
       loadChatPartner(partnerId);
       loadMessages(partnerId);
+      loadReactions(partnerId);
+      subscribeToTyping(partnerId);
     }
+    
+    return () => {
+      if (partnerId && user) {
+        updateTypingStatus(false);
+      }
+    };
   }, [partnerId]);
 
+  // Auto scroll to bottom when messages change
   useEffect(() => {
-    // Scroll to bottom when messages change
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
+    scrollToBottom();
   }, [messages]);
+
+  // Subscribe to realtime reactions
+  useEffect(() => {
+    if (!partnerId) return;
+
+    const channel = supabase
+      .channel('message-reactions')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_reactions',
+        },
+        () => {
+          loadReactions(partnerId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [partnerId]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const loadChatPartner = async (userId: string) => {
     const { data } = await supabase
@@ -53,6 +103,78 @@ const Chat = () => {
     if (data) {
       setSelectedUser(data);
     }
+  };
+
+  const loadReactions = async (partnerId: string) => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from("message_reactions")
+      .select("*")
+      .or(`message_id.in.(${messages.map(m => `"${m.id}"`).join(",")})`);
+    
+    if (data) {
+      const grouped = data.reduce((acc, reaction) => {
+        if (!acc[reaction.message_id]) {
+          acc[reaction.message_id] = [];
+        }
+        acc[reaction.message_id].push(reaction);
+        return acc;
+      }, {} as Record<string, MessageReaction[]>);
+      
+      setReactions(grouped);
+    }
+  };
+
+  const subscribeToTyping = (partnerId: string) => {
+    const channel = supabase
+      .channel(`typing-${partnerId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'typing_status',
+          filter: `user_id=eq.${partnerId}`,
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.chat_partner_id === user?.id) {
+            setIsPartnerTyping(payload.new.is_typing);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
+  const updateTypingStatus = useCallback(async (isTyping: boolean) => {
+    if (!user || !partnerId) return;
+
+    await supabase
+      .from("typing_status")
+      .upsert({
+        user_id: user.id,
+        chat_partner_id: partnerId,
+        is_typing: isTyping,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: "user_id,chat_partner_id"
+      });
+  }, [user, partnerId]);
+
+  const handleTyping = () => {
+    updateTypingStatus(true);
+    
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingStatus(false);
+    }, 2000);
   };
 
   const handleSearch = (query: string) => {
@@ -73,6 +195,7 @@ const Chat = () => {
   const handleSendMessage = async () => {
     if (!selectedUser || !messageText.trim()) return;
     
+    updateTypingStatus(false);
     const success = await sendMessage(selectedUser.id, messageText);
     if (success) {
       setMessageText("");
@@ -84,6 +207,33 @@ const Chat = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleAddReaction = async (messageId: string, reaction: string) => {
+    if (!user) return;
+    
+    const existingReaction = reactions[messageId]?.find(
+      r => r.user_id === user.id && r.reaction === reaction
+    );
+    
+    if (existingReaction) {
+      await supabase
+        .from("message_reactions")
+        .delete()
+        .eq("id", existingReaction.id);
+    } else {
+      await supabase
+        .from("message_reactions")
+        .insert({
+          message_id: messageId,
+          user_id: user.id,
+          reaction: reaction,
+        });
+    }
+    
+    if (partnerId) {
+      loadReactions(partnerId);
     }
   };
 
@@ -113,9 +263,9 @@ const Chat = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-3rem)] md:h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-10 shrink-0">
+    <div className="h-[calc(100vh-4rem)] md:h-screen bg-background flex flex-col">
+      {/* Fixed Header */}
+      <header className="border-b bg-card z-10 shrink-0">
         <div className="container mx-auto px-4 py-3">
           {selectedUser ? (
             <div className="flex items-center justify-between">
@@ -129,7 +279,11 @@ const Chat = () => {
                 </Avatar>
                 <div>
                   <h2 className="font-semibold">{getDisplayName(selectedUser)}</h2>
-                  <p className="text-xs text-muted-foreground">@{selectedUser.username || "user"}</p>
+                  {isPartnerTyping ? (
+                    <p className="text-xs text-primary animate-pulse">typing...</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">@{selectedUser.username || "user"}</p>
+                  )}
                 </div>
               </div>
               <Button
@@ -198,7 +352,7 @@ const Chat = () => {
 
       {!selectedUser ? (
         // Conversation List View
-        <div className="flex-1 overflow-auto container mx-auto px-4 py-4">
+        <div className="flex-1 overflow-auto container mx-auto px-4 py-4 pb-20 md:pb-4">
           {/* Search Users */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -287,9 +441,9 @@ const Chat = () => {
           </div>
         </div>
       ) : (
-        // Chat View
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Messages Container with Background */}
+        // Chat View with Fixed Header and Input, Scrollable Messages
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* Scrollable Messages Container */}
           <div
             ref={messagesContainerRef}
             className="flex-1 overflow-y-auto px-4 py-4"
@@ -303,42 +457,124 @@ const Chat = () => {
             <div className="space-y-3 max-w-2xl mx-auto">
               {messages.map((msg) => {
                 const isMine = msg.sender_id === user?.id;
+                const msgReactions = reactions[msg.id] || [];
+                
                 return (
                   <div
                     key={msg.id}
-                    className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                    className={`flex ${isMine ? "justify-end" : "justify-start"} group`}
                   >
-                    <div
-                      className={`max-w-[80%] px-4 py-2 rounded-2xl shadow-sm ${
-                        isMine
-                          ? "bg-primary text-primary-foreground rounded-br-md"
-                          : backgroundUrl 
-                            ? "bg-card/95 backdrop-blur-sm rounded-bl-md"
-                            : "bg-muted rounded-bl-md"
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          isMine ? "text-primary-foreground/70" : "text-muted-foreground"
+                    <div className="relative">
+                      <div
+                        className={`max-w-[80%] px-4 py-2 rounded-2xl shadow-sm ${
+                          isMine
+                            ? "bg-primary text-primary-foreground rounded-br-md"
+                            : backgroundUrl 
+                              ? "bg-card/95 backdrop-blur-sm rounded-bl-md"
+                              : "bg-muted rounded-bl-md"
                         }`}
                       >
-                        {format(new Date(msg.created_at), "h:mm a")}
-                      </p>
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <div className={`flex items-center gap-1 mt-1 ${
+                          isMine ? "justify-end" : "justify-start"
+                        }`}>
+                          <span
+                            className={`text-xs ${
+                              isMine ? "text-primary-foreground/70" : "text-muted-foreground"
+                            }`}
+                          >
+                            {format(new Date(msg.created_at), "h:mm a")}
+                          </span>
+                          {isMine && (
+                            <span className="text-primary-foreground/70">
+                              {msg.is_read ? (
+                                <CheckCheck className="h-3 w-3" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Reactions Display */}
+                      {msgReactions.length > 0 && (
+                        <div className={`flex gap-1 mt-1 ${isMine ? "justify-end" : "justify-start"}`}>
+                          {Object.entries(
+                            msgReactions.reduce((acc, r) => {
+                              acc[r.reaction] = (acc[r.reaction] || 0) + 1;
+                              return acc;
+                            }, {} as Record<string, number>)
+                          ).map(([reaction, count]) => (
+                            <span
+                              key={reaction}
+                              className="text-xs bg-muted px-1.5 py-0.5 rounded-full"
+                            >
+                              {reaction} {count > 1 && count}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Reaction Button */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`absolute top-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity ${
+                              isMine ? "-left-8" : "-right-8"
+                            }`}
+                          >
+                            <Smile className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-2" side="top">
+                          <div className="flex gap-1">
+                            {REACTIONS.map((reaction) => (
+                              <button
+                                key={reaction}
+                                onClick={() => handleAddReaction(msg.id, reaction)}
+                                className="text-lg hover:scale-125 transition-transform p-1"
+                              >
+                                {reaction}
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                 );
               })}
+              
+              {/* Typing Indicator */}
+              {isPartnerTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-muted px-4 py-2 rounded-2xl rounded-bl-md">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} />
             </div>
           </div>
 
-          {/* Message Input */}
+          {/* Fixed Message Input */}
           <div className="border-t bg-card p-4 shrink-0">
             <div className="max-w-2xl mx-auto flex gap-2">
               <Input
                 placeholder="Type a message..."
                 value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
+                onChange={(e) => {
+                  setMessageText(e.target.value);
+                  handleTyping();
+                }}
                 onKeyPress={handleKeyPress}
                 className="flex-1"
               />

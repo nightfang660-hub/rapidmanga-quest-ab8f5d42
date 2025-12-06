@@ -137,6 +137,38 @@ export type Database = {
         }
         Relationships: []
       }
+      message_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          message_id: string
+          reaction: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_id: string
+          reaction: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_id?: string
+          reaction?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -206,6 +238,8 @@ export type Database = {
           display_name: string | null
           id: string
           last_read_date: string | null
+          notification_preferences: Json | null
+          reading_preferences: Json | null
           reading_streak: number | null
           total_chapters_read: number | null
           total_manga_read: number | null
@@ -220,6 +254,8 @@ export type Database = {
           display_name?: string | null
           id: string
           last_read_date?: string | null
+          notification_preferences?: Json | null
+          reading_preferences?: Json | null
           reading_streak?: number | null
           total_chapters_read?: number | null
           total_manga_read?: number | null
@@ -234,6 +270,8 @@ export type Database = {
           display_name?: string | null
           id?: string
           last_read_date?: string | null
+          notification_preferences?: Json | null
+          reading_preferences?: Json | null
           reading_streak?: number | null
           total_chapters_read?: number | null
           total_manga_read?: number | null
@@ -394,6 +432,30 @@ export type Database = {
           manga_title?: string
           recommendation_text?: string | null
           shared_with_user_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      typing_status: {
+        Row: {
+          chat_partner_id: string
+          id: string
+          is_typing: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chat_partner_id: string
+          id?: string
+          is_typing?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chat_partner_id?: string
+          id?: string
+          is_typing?: boolean
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
