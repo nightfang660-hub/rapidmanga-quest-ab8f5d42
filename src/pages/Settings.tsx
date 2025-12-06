@@ -180,13 +180,13 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6 pb-20 md:pb-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center gap-3 mb-6">
-          <SettingsIcon className="h-8 w-8 text-primary" />
+    <div className="min-h-screen bg-background p-3 sm:p-4 md:p-6 pb-24 md:pb-6">
+      <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
+        <div className="flex items-center gap-3 mb-4 sm:mb-6">
+          <SettingsIcon className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">Settings</h1>
-            <p className="text-muted-foreground">Manage your app preferences</p>
+            <h1 className="text-xl sm:text-2xl font-bold">Settings</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage your app preferences</p>
           </div>
         </div>
 
@@ -199,13 +199,13 @@ const Settings = () => {
             </CardTitle>
             <CardDescription>Customize how the app looks</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {isDarkMode ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-                <div>
-                  <Label htmlFor="dark-mode" className="font-medium">Dark Mode</Label>
-                  <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-3 sm:space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                {isDarkMode ? <Moon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" /> : <Sun className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />}
+                <div className="min-w-0">
+                  <Label htmlFor="dark-mode" className="font-medium text-sm sm:text-base">Dark Mode</Label>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
                     Toggle between light and dark theme
                   </p>
                 </div>
@@ -214,17 +214,18 @@ const Settings = () => {
                 id="dark-mode"
                 checked={isDarkMode}
                 onCheckedChange={handleThemeToggle}
+                className="shrink-0"
               />
             </div>
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-                <div>
-                  <Label htmlFor="sidebar-collapsed" className="font-medium">Collapse Sidebar</Label>
-                  <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                {isCollapsed ? <PanelLeft className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" /> : <PanelLeftClose className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />}
+                <div className="min-w-0">
+                  <Label htmlFor="sidebar-collapsed" className="font-medium text-sm sm:text-base">Collapse Sidebar</Label>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
                     Show only icons in the sidebar
                   </p>
                 </div>
@@ -233,6 +234,7 @@ const Settings = () => {
                 id="sidebar-collapsed"
                 checked={isCollapsed}
                 onCheckedChange={handleSidebarToggle}
+                className="shrink-0"
               />
             </div>
           </CardContent>
@@ -247,11 +249,11 @@ const Settings = () => {
             </CardTitle>
             <CardDescription>Control what notifications you receive</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="notif-messages" className="font-medium">Message Notifications</Label>
-                <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-3 sm:space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="notif-messages" className="font-medium text-sm sm:text-base">Message Notifications</Label>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Get notified when you receive new messages
                 </p>
               </div>
@@ -259,15 +261,16 @@ const Settings = () => {
                 id="notif-messages"
                 checked={notificationPrefs.messages}
                 onCheckedChange={(checked) => updateNotificationPref("messages", checked)}
+                className="shrink-0"
               />
             </div>
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="notif-follows" className="font-medium">Follow Notifications</Label>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="notif-follows" className="font-medium text-sm sm:text-base">Follow Notifications</Label>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Get notified when someone follows you
                 </p>
               </div>
@@ -275,15 +278,16 @@ const Settings = () => {
                 id="notif-follows"
                 checked={notificationPrefs.follows}
                 onCheckedChange={(checked) => updateNotificationPref("follows", checked)}
+                className="shrink-0"
               />
             </div>
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="notif-recommendations" className="font-medium">Recommendation Notifications</Label>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="notif-recommendations" className="font-medium text-sm sm:text-base">Recommendations</Label>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Get notified about manga recommendations
                 </p>
               </div>
@@ -291,6 +295,7 @@ const Settings = () => {
                 id="notif-recommendations"
                 checked={notificationPrefs.recommendations}
                 onCheckedChange={(checked) => updateNotificationPref("recommendations", checked)}
+                className="shrink-0"
               />
             </div>
           </CardContent>
@@ -305,11 +310,11 @@ const Settings = () => {
             </CardTitle>
             <CardDescription>Customize your reading experience</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="font-medium">Reading Direction</Label>
-                <p className="text-sm text-muted-foreground">
+          <CardContent className="space-y-3 sm:space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+              <div className="min-w-0">
+                <Label className="font-medium text-sm sm:text-base">Reading Direction</Label>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Choose how pages are displayed
                 </p>
               </div>
@@ -317,7 +322,7 @@ const Settings = () => {
                 value={readingPrefs.readingDirection}
                 onValueChange={(value: "ltr" | "rtl") => updateReadingPref("readingDirection", value)}
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -329,10 +334,10 @@ const Settings = () => {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="font-medium">Page Mode</Label>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+              <div className="min-w-0">
+                <Label className="font-medium text-sm sm:text-base">Page Mode</Label>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Single or double page view
                 </p>
               </div>
@@ -340,7 +345,7 @@ const Settings = () => {
                 value={readingPrefs.pageMode}
                 onValueChange={(value: "single" | "double") => updateReadingPref("pageMode", value)}
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -352,10 +357,10 @@ const Settings = () => {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="auto-next" className="font-medium">Auto Next Chapter</Label>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <Label htmlFor="auto-next" className="font-medium text-sm sm:text-base">Auto Next Chapter</Label>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Automatically load the next chapter
                 </p>
               </div>
@@ -363,6 +368,7 @@ const Settings = () => {
                 id="auto-next"
                 checked={readingPrefs.autoNextChapter}
                 onCheckedChange={(checked) => updateReadingPref("autoNextChapter", checked)}
+                className="shrink-0"
               />
             </div>
           </CardContent>
@@ -377,32 +383,34 @@ const Settings = () => {
             </CardTitle>
             <CardDescription>Manage your account settings</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-              <Mail className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Email</p>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+          <CardContent className="space-y-3 sm:space-y-4">
+            <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-muted rounded-lg">
+              <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-medium">Email</p>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
 
             <Separator />
 
             {/* Change Password */}
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-center gap-2">
-                <Key className="h-5 w-5" />
-                <Label className="font-medium">Change Password</Label>
+                <Key className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Label className="font-medium text-sm sm:text-base">Change Password</Label>
               </div>
               <div className="space-y-2">
                 <Input
                   type="password"
+                  className="text-sm"
                   placeholder="New password (min 8 chars, mixed case + number)"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
                 <Input
                   type="password"
+                  className="text-sm"
                   placeholder="Confirm new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -410,7 +418,7 @@ const Settings = () => {
                 <Button 
                   onClick={handleChangePassword}
                   disabled={isChangingPassword || !newPassword || !confirmPassword}
-                  className="w-full"
+                  className="w-full text-sm sm:text-base"
                 >
                   {isChangingPassword ? "Changing..." : "Change Password"}
                 </Button>
@@ -423,7 +431,7 @@ const Settings = () => {
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="w-full gap-2"
+              className="w-full gap-2 text-sm sm:text-base"
             >
               <LogOut className="h-4 w-4" />
               Logout
@@ -434,7 +442,7 @@ const Settings = () => {
             {/* Delete Account */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full gap-2">
+                <Button variant="destructive" className="w-full gap-2 text-sm sm:text-base">
                   <Trash2 className="h-4 w-4" />
                   Delete Account
                 </Button>
