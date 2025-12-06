@@ -7,7 +7,7 @@ interface Message {
   sender_id: string;
   receiver_id: string;
   content: string;
-  is_read: boolean;
+  is_read: boolean | null;
   created_at: string;
 }
 
@@ -30,13 +30,14 @@ export const useChat = () => {
   useEffect(() => {
     if (user) {
       loadConversations();
-      subscribeToMessages();
+      const cleanup = subscribeToMessages();
+      return cleanup;
     }
   }, [user]);
 
   const subscribeToMessages = () => {
     const channel = supabase
-      .channel("messages")
+      .channel("messages-realtime")
       .on(
         "postgres_changes",
         {
@@ -52,6 +53,22 @@ export const useChat = () => {
           }
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          const updatedMessage = payload.new as Message;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === updatedMessage.id ? updatedMessage : msg
+            )
+          );
+        }
+      )
       .subscribe();
 
     return () => {
@@ -63,7 +80,6 @@ export const useChat = () => {
     if (!user) return;
 
     try {
-      // Get all messages involving the current user
       const { data: messagesData, error } = await supabase
         .from("messages")
         .select("*")
@@ -72,7 +88,6 @@ export const useChat = () => {
 
       if (error) throw error;
 
-      // Group by conversation partner
       const conversationMap = new Map<string, any>();
       
       for (const msg of messagesData || []) {
@@ -91,7 +106,6 @@ export const useChat = () => {
         }
       }
 
-      // Get user profiles for conversation partners
       const partnerIds = Array.from(conversationMap.keys());
       if (partnerIds.length > 0) {
         const { data: profiles } = await supabase
@@ -137,13 +151,26 @@ export const useChat = () => {
       setMessages(data || []);
 
       // Mark messages as read
+      await markAsRead(partnerId);
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    }
+  };
+
+  const markAsRead = async (partnerId: string) => {
+    if (!user) return;
+
+    try {
       await supabase
         .from("messages")
         .update({ is_read: true })
         .eq("sender_id", partnerId)
-        .eq("receiver_id", user.id);
+        .eq("receiver_id", user.id)
+        .eq("is_read", false);
+      
+      loadConversations();
     } catch (error) {
-      console.error("Error loading messages:", error);
+      console.error("Error marking messages as read:", error);
     }
   };
 
@@ -159,7 +186,7 @@ export const useChat = () => {
 
       if (error) throw error;
 
-      // Create notification for receiver
+      // Create notification for receiver (user is the related_user)
       await supabase.from("notifications").insert({
         user_id: receiverId,
         type: "message",
@@ -182,5 +209,6 @@ export const useChat = () => {
     loadConversations,
     loadMessages,
     sendMessage,
+    markAsRead,
   };
 };

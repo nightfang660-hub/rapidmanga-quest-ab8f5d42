@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { Json } from "@/integrations/supabase/types";
 
 interface Profile {
   id: string;
@@ -13,6 +14,9 @@ interface Profile {
   total_chapters_read: number;
   reading_streak: number;
   last_read_date: string | null;
+  chat_background_url: string | null;
+  notification_preferences: Json | null;
+  reading_preferences: Json | null;
   created_at: string;
   updated_at: string;
 }
