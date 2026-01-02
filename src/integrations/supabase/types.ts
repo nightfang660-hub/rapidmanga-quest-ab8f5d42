@@ -481,6 +481,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          auto_next_chapter: boolean
+          compact_sidebar: boolean
+          dm_notifications: boolean
+          follower_notifications: boolean
+          page_display: string
+          reading_direction: string
+          recommendation_notifications: boolean
+          theme: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_next_chapter?: boolean
+          compact_sidebar?: boolean
+          dm_notifications?: boolean
+          follower_notifications?: boolean
+          page_display?: string
+          reading_direction?: string
+          recommendation_notifications?: boolean
+          theme?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_next_chapter?: boolean
+          compact_sidebar?: boolean
+          dm_notifications?: boolean
+          follower_notifications?: boolean
+          page_display?: string
+          reading_direction?: string
+          recommendation_notifications?: boolean
+          theme?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
