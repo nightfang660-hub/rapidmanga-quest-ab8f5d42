@@ -9,6 +9,42 @@ const corsHeaders = {
 
 const API_BASE_URL = "https://mangaverse-api.p.rapidapi.com";
 
+// Helper to create sync log entry
+async function createSyncLog(supabase: any, syncType: string, triggeredBy: string) {
+  const { data, error } = await supabase
+    .from('sync_logs')
+    .insert({
+      sync_type: syncType,
+      status: 'running',
+      triggered_by: triggeredBy,
+    })
+    .select('id')
+    .single();
+  
+  if (error) {
+    console.error('Failed to create sync log:', error);
+    return null;
+  }
+  return data.id;
+}
+
+// Helper to update sync log
+async function updateSyncLog(supabase: any, logId: string, updates: any) {
+  if (!logId) return;
+  
+  const { error } = await supabase
+    .from('sync_logs')
+    .update({
+      ...updates,
+      completed_at: new Date().toISOString(),
+    })
+    .eq('id', logId);
+  
+  if (error) {
+    console.error('Failed to update sync log:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -45,47 +81,133 @@ serve(async (req) => {
     };
 
     switch (action) {
-      case 'syncLatest': {
-        // Fetch latest manga from API
-        const page = params?.page || 1;
-        const url = `${API_BASE_URL}/manga/latest?page=${page}&nsfw=false&type=all`;
-        const response = await fetch(url, { headers: apiHeaders });
+      case 'cronSync': {
+        // Check if cron is enabled
+        const { data: settings } = await supabase
+          .from('sync_settings')
+          .select('cron_enabled, cron_interval_minutes, last_cron_run')
+          .eq('id', 'default')
+          .single();
+
+        // For manual cron trigger, we allow it even if cron_enabled is false
+        // The settings check is mainly for automated scheduled runs
         
-        if (!response.ok) {
-          throw new Error(`API error: ${response.statusText}`);
-        }
+        const logId = await createSyncLog(supabase, 'latest', 'cron');
 
-        const data = await response.json();
-        const mangaList = data.data || [];
-        let synced = 0;
+        try {
+          // Fetch latest manga from API (first 2 pages for cron)
+          let totalSynced = 0;
+          
+          for (let page = 1; page <= 2; page++) {
+            const url = `${API_BASE_URL}/manga/latest?page=${page}&nsfw=false&type=all`;
+            const response = await fetch(url, { headers: apiHeaders });
+            
+            if (!response.ok) {
+              throw new Error(`API error: ${response.statusText}`);
+            }
 
-        for (const manga of mangaList) {
-          // Upsert manga into database
-          const { error: mangaError } = await supabase
-            .from('mangas')
-            .upsert({
-              api_id: manga.id,
-              title: manga.title,
-              description: manga.summary || null,
-              cover_url: manga.thumb || null,
-              status: manga.status || null,
-              last_fetched_at: new Date().toISOString(),
-            }, { onConflict: 'api_id' });
+            const data = await response.json();
+            const mangaList = data.data || [];
 
-          if (mangaError) {
-            console.error(`Error upserting manga ${manga.id}:`, mangaError);
-            continue;
+            for (const manga of mangaList) {
+              const { error: mangaError } = await supabase
+                .from('mangas')
+                .upsert({
+                  api_id: manga.id,
+                  title: manga.title,
+                  description: manga.summary || null,
+                  cover_url: manga.thumb || null,
+                  status: manga.status || null,
+                  last_fetched_at: new Date().toISOString(),
+                }, { onConflict: 'api_id' });
+
+              if (!mangaError) totalSynced++;
+            }
           }
-          synced++;
-        }
 
-        return new Response(JSON.stringify({ 
-          success: true, 
-          synced,
-          total: mangaList.length 
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+          // Update last cron run time
+          await supabase
+            .from('sync_settings')
+            .update({ 
+              last_cron_run: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', 'default');
+
+          await updateSyncLog(supabase, logId, {
+            status: 'completed',
+            manga_count: totalSynced,
+          });
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            synced: totalSynced,
+            message: 'Cron sync completed'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          await updateSyncLog(supabase, logId, {
+            status: 'failed',
+            error_message: errorMessage,
+          });
+          throw error;
+        }
+      }
+
+      case 'syncLatest': {
+        const page = params?.page || 1;
+        const triggeredBy = params?.triggeredBy || 'manual';
+        const logId = await createSyncLog(supabase, 'latest', triggeredBy);
+
+        try {
+          const url = `${API_BASE_URL}/manga/latest?page=${page}&nsfw=false&type=all`;
+          const response = await fetch(url, { headers: apiHeaders });
+          
+          if (!response.ok) {
+            throw new Error(`API error: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          const mangaList = data.data || [];
+          let synced = 0;
+
+          for (const manga of mangaList) {
+            const { error: mangaError } = await supabase
+              .from('mangas')
+              .upsert({
+                api_id: manga.id,
+                title: manga.title,
+                description: manga.summary || null,
+                cover_url: manga.thumb || null,
+                status: manga.status || null,
+                last_fetched_at: new Date().toISOString(),
+              }, { onConflict: 'api_id' });
+
+            if (!mangaError) synced++;
+          }
+
+          await updateSyncLog(supabase, logId, {
+            status: 'completed',
+            manga_count: synced,
+          });
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            synced,
+            total: mangaList.length 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          await updateSyncLog(supabase, logId, {
+            status: 'failed',
+            error_message: errorMessage,
+          });
+          throw error;
+        }
       }
 
       case 'syncMangaChapters': {
@@ -97,101 +219,115 @@ serve(async (req) => {
           });
         }
 
-        // Get manga from database
-        const { data: mangaData, error: mangaFetchError } = await supabase
-          .from('mangas')
-          .select('id')
-          .eq('api_id', mangaApiId)
-          .single();
+        const triggeredBy = params?.triggeredBy || 'background';
+        const logId = await createSyncLog(supabase, 'chapters', triggeredBy);
 
-        let mangaUuid = mangaData?.id;
-
-        // If manga not in DB, fetch and insert it first
-        if (!mangaUuid) {
-          const mangaUrl = `${API_BASE_URL}/manga?id=${mangaApiId}`;
-          const mangaResponse = await fetch(mangaUrl, { headers: apiHeaders });
-          
-          if (!mangaResponse.ok) {
-            throw new Error(`Failed to fetch manga: ${mangaResponse.statusText}`);
-          }
-
-          const mangaInfo = await mangaResponse.json();
-          const manga = mangaInfo.data;
-
-          const { data: insertedManga, error: insertError } = await supabase
+        try {
+          // Get manga from database
+          const { data: mangaData } = await supabase
             .from('mangas')
-            .upsert({
-              api_id: manga.id,
-              title: manga.title,
-              description: manga.summary || null,
-              cover_url: manga.thumb || null,
-              status: manga.status || null,
-              last_fetched_at: new Date().toISOString(),
-            }, { onConflict: 'api_id' })
             .select('id')
+            .eq('api_id', mangaApiId)
             .single();
 
-          if (insertError) {
-            throw new Error(`Failed to insert manga: ${insertError.message}`);
+          let mangaUuid = mangaData?.id;
+
+          // If manga not in DB, fetch and insert it first
+          if (!mangaUuid) {
+            const mangaUrl = `${API_BASE_URL}/manga?id=${mangaApiId}`;
+            const mangaResponse = await fetch(mangaUrl, { headers: apiHeaders });
+            
+            if (!mangaResponse.ok) {
+              throw new Error(`Failed to fetch manga: ${mangaResponse.statusText}`);
+            }
+
+            const mangaInfo = await mangaResponse.json();
+            const manga = mangaInfo.data;
+
+            const { data: insertedManga, error: insertError } = await supabase
+              .from('mangas')
+              .upsert({
+                api_id: manga.id,
+                title: manga.title,
+                description: manga.summary || null,
+                cover_url: manga.thumb || null,
+                status: manga.status || null,
+                last_fetched_at: new Date().toISOString(),
+              }, { onConflict: 'api_id' })
+              .select('id')
+              .single();
+
+            if (insertError) {
+              throw new Error(`Failed to insert manga: ${insertError.message}`);
+            }
+            mangaUuid = insertedManga.id;
           }
-          mangaUuid = insertedManga.id;
-        }
 
-        // Fetch chapters from API
-        const chaptersUrl = `${API_BASE_URL}/manga/chapter?id=${mangaApiId}`;
-        const chaptersResponse = await fetch(chaptersUrl, { headers: apiHeaders });
-        
-        if (!chaptersResponse.ok) {
-          throw new Error(`Failed to fetch chapters: ${chaptersResponse.statusText}`);
-        }
-
-        const chaptersData = await chaptersResponse.json();
-        const chapters = chaptersData.data || [];
-        let syncedChapters = 0;
-
-        for (const chapter of chapters) {
-          const chapterNumber = parseFloat(chapter.chapterNumber || chapter.chapter || '0');
+          // Fetch chapters from API
+          const chaptersUrl = `${API_BASE_URL}/manga/chapter?id=${mangaApiId}`;
+          const chaptersResponse = await fetch(chaptersUrl, { headers: apiHeaders });
           
-          const { error: chapterError } = await supabase
-            .from('chapters')
-            .upsert({
-              manga_id: mangaUuid,
-              api_id: chapter.id,
-              chapter_number: chapterNumber,
-              title: chapter.title || `Chapter ${chapterNumber}`,
-              release_date: chapter.createdAt ? new Date(chapter.createdAt).toISOString() : null,
-            }, { onConflict: 'api_id' });
-
-          if (chapterError) {
-            console.error(`Error upserting chapter ${chapter.id}:`, chapterError);
-            continue;
+          if (!chaptersResponse.ok) {
+            throw new Error(`Failed to fetch chapters: ${chaptersResponse.statusText}`);
           }
-          syncedChapters++;
-        }
 
-        // Update manga's latest chapter number
-        if (chapters.length > 0) {
-          const latestChapterNum = Math.max(...chapters.map((c: any) => 
-            parseFloat(c.chapterNumber || c.chapter || '0')
-          ));
-          
-          await supabase
-            .from('mangas')
-            .update({ 
-              latest_chapter_number: latestChapterNum,
-              last_fetched_at: new Date().toISOString()
-            })
-            .eq('id', mangaUuid);
-        }
+          const chaptersData = await chaptersResponse.json();
+          const chapters = chaptersData.data || [];
+          let syncedChapters = 0;
 
-        return new Response(JSON.stringify({ 
-          success: true, 
-          mangaId: mangaUuid,
-          syncedChapters,
-          totalChapters: chapters.length 
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+          for (const chapter of chapters) {
+            const chapterNumber = parseFloat(chapter.chapterNumber || chapter.chapter || '0');
+            
+            const { error: chapterError } = await supabase
+              .from('chapters')
+              .upsert({
+                manga_id: mangaUuid,
+                api_id: chapter.id,
+                chapter_number: chapterNumber,
+                title: chapter.title || `Chapter ${chapterNumber}`,
+                release_date: chapter.createdAt ? new Date(chapter.createdAt).toISOString() : null,
+              }, { onConflict: 'api_id' });
+
+            if (!chapterError) syncedChapters++;
+          }
+
+          // Update manga's latest chapter number
+          if (chapters.length > 0) {
+            const latestChapterNum = Math.max(...chapters.map((c: any) => 
+              parseFloat(c.chapterNumber || c.chapter || '0')
+            ));
+            
+            await supabase
+              .from('mangas')
+              .update({ 
+                latest_chapter_number: latestChapterNum,
+                last_fetched_at: new Date().toISOString()
+              })
+              .eq('id', mangaUuid);
+          }
+
+          await updateSyncLog(supabase, logId, {
+            status: 'completed',
+            manga_count: 1,
+            chapter_count: syncedChapters,
+          });
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            mangaId: mangaUuid,
+            syncedChapters,
+            totalChapters: chapters.length 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          await updateSyncLog(supabase, logId, {
+            status: 'failed',
+            error_message: errorMessage,
+          });
+          throw error;
+        }
       }
 
       case 'syncChapterImages': {
@@ -203,34 +339,51 @@ serve(async (req) => {
           });
         }
 
-        // Fetch images from API
-        const imagesUrl = `${API_BASE_URL}/manga/image?id=${chapterApiId}`;
-        const imagesResponse = await fetch(imagesUrl, { headers: apiHeaders });
-        
-        if (!imagesResponse.ok) {
-          throw new Error(`Failed to fetch images: ${imagesResponse.statusText}`);
+        const triggeredBy = params?.triggeredBy || 'background';
+        const logId = await createSyncLog(supabase, 'images', triggeredBy);
+
+        try {
+          // Fetch images from API
+          const imagesUrl = `${API_BASE_URL}/manga/image?id=${chapterApiId}`;
+          const imagesResponse = await fetch(imagesUrl, { headers: apiHeaders });
+          
+          if (!imagesResponse.ok) {
+            throw new Error(`Failed to fetch images: ${imagesResponse.statusText}`);
+          }
+
+          const imagesData = await imagesResponse.json();
+          const images = imagesData.data || [];
+
+          // Update chapter with pages
+          const { error: updateError } = await supabase
+            .from('chapters')
+            .update({ pages: images })
+            .eq('api_id', chapterApiId);
+
+          if (updateError) {
+            throw new Error(`Failed to update chapter images: ${updateError.message}`);
+          }
+
+          await updateSyncLog(supabase, logId, {
+            status: 'completed',
+            chapter_count: 1,
+          });
+
+          return new Response(JSON.stringify({ 
+            success: true, 
+            chapterId: chapterApiId,
+            pagesCount: images.length 
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          await updateSyncLog(supabase, logId, {
+            status: 'failed',
+            error_message: errorMessage,
+          });
+          throw error;
         }
-
-        const imagesData = await imagesResponse.json();
-        const images = imagesData.data || [];
-
-        // Update chapter with pages
-        const { error: updateError } = await supabase
-          .from('chapters')
-          .update({ pages: images })
-          .eq('api_id', chapterApiId);
-
-        if (updateError) {
-          throw new Error(`Failed to update chapter images: ${updateError.message}`);
-        }
-
-        return new Response(JSON.stringify({ 
-          success: true, 
-          chapterId: chapterApiId,
-          pagesCount: images.length 
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
       }
 
       default:
