@@ -71,6 +71,47 @@ export type Database = {
         }
         Relationships: []
       }
+      chapters: {
+        Row: {
+          api_id: string
+          chapter_number: number
+          created_at: string | null
+          id: string
+          manga_id: string | null
+          pages: Json | null
+          release_date: string | null
+          title: string | null
+        }
+        Insert: {
+          api_id: string
+          chapter_number: number
+          created_at?: string | null
+          id?: string
+          manga_id?: string | null
+          pages?: Json | null
+          release_date?: string | null
+          title?: string | null
+        }
+        Update: {
+          api_id?: string
+          chapter_number?: number
+          created_at?: string | null
+          id?: string
+          manga_id?: string | null
+          pages?: Json | null
+          release_date?: string | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapters_manga_id_fkey"
+            columns: ["manga_id"]
+            isOneToOne: false
+            referencedRelation: "mangas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       downloaded_chapters: {
         Row: {
           chapter_data: Json
@@ -134,6 +175,45 @@ export type Database = {
           review_text?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      mangas: {
+        Row: {
+          api_id: string
+          cover_url: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          last_fetched_at: string | null
+          latest_chapter_number: number | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          api_id: string
+          cover_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_fetched_at?: string | null
+          latest_chapter_number?: number | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          api_id?: string
+          cover_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          last_fetched_at?: string | null
+          latest_chapter_number?: number | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
