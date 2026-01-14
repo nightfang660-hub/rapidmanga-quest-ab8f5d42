@@ -55,28 +55,47 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!API_KEY) {
+    // Create Supabase client with service role for write access
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // Parse request body - handle GET requests for health check
+    let action = 'health';
+    let params: any = {};
+    
+    if (req.method === 'POST') {
+      const body = await req.json();
+      action = body.action || 'health';
+      params = body.params || {};
+    }
+    
+    // Handle URL query params for external cron services
+    const url = new URL(req.url);
+    if (url.searchParams.get('action')) {
+      action = url.searchParams.get('action')!;
+    }
+    if (url.searchParams.get('secret')) {
+      const cronSecret = Deno.env.get('CRON_SECRET');
+      if (cronSecret && url.searchParams.get('secret') !== cronSecret) {
+        return new Response(JSON.stringify({ error: 'Invalid cron secret' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    console.log(`Manga sync request: action=${action}`, params);
+
+    // Validate API key for actions that need external API
+    const needsApiKey = ['cronSync', 'syncLatest', 'syncMangaChapters', 'syncChapterImages'].includes(action);
+    if (needsApiKey && !API_KEY) {
       return new Response(JSON.stringify({ error: 'RAPIDAPI_KEY not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return new Response(JSON.stringify({ error: 'Supabase credentials not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Create Supabase client with service role for write access
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    const { action, params } = await req.json();
-    console.log(`Manga sync request: action=${action}`, params);
-
-    const apiHeaders = {
-      "x-rapidapi-key": API_KEY,
+    const apiHeaders: Record<string, string> = {
+      "x-rapidapi-key": API_KEY || '',
       "x-rapidapi-host": "mangaverse-api.p.rapidapi.com",
     };
 
@@ -386,8 +405,75 @@ serve(async (req) => {
         }
       }
 
+      case 'health': {
+        // Health check endpoint for monitoring
+        const configStatus = {
+          api_key: !!API_KEY,
+          supabase_url: !!SUPABASE_URL,
+          supabase_service_key: !!SUPABASE_SERVICE_ROLE_KEY,
+        };
+
+        // Get sync statistics
+        const { data: settings } = await supabase
+          .from('sync_settings')
+          .select('*')
+          .eq('id', 'default')
+          .single();
+
+        const { data: recentLogs } = await supabase
+          .from('sync_logs')
+          .select('*')
+          .order('started_at', { ascending: false })
+          .limit(5);
+
+        const { count: mangaCount } = await supabase
+          .from('mangas')
+          .select('*', { count: 'exact', head: true });
+
+        const { count: chapterCount } = await supabase
+          .from('chapters')
+          .select('*', { count: 'exact', head: true });
+
+        // Calculate sync health
+        const lastSync = recentLogs?.[0];
+        const lastSyncAge = lastSync?.completed_at 
+          ? Date.now() - new Date(lastSync.completed_at).getTime()
+          : null;
+        const isHealthy = lastSyncAge !== null && lastSyncAge < 2 * 60 * 60 * 1000; // 2 hours
+
+        return new Response(JSON.stringify({
+          status: isHealthy ? 'healthy' : 'warning',
+          timestamp: new Date().toISOString(),
+          config: configStatus,
+          database: {
+            manga_count: mangaCount || 0,
+            chapter_count: chapterCount || 0,
+          },
+          sync: {
+            cron_enabled: settings?.cron_enabled || false,
+            cron_interval_minutes: settings?.cron_interval_minutes || 60,
+            last_cron_run: settings?.last_cron_run || null,
+            last_sync_status: lastSync?.status || 'never',
+            last_sync_time: lastSync?.completed_at || null,
+            last_sync_age_minutes: lastSyncAge ? Math.round(lastSyncAge / 60000) : null,
+          },
+          recent_syncs: recentLogs?.map(log => ({
+            id: log.id,
+            type: log.sync_type,
+            status: log.status,
+            manga_count: log.manga_count,
+            chapter_count: log.chapter_count,
+            started_at: log.started_at,
+            completed_at: log.completed_at,
+            error: log.error_message,
+          })) || [],
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       default:
-        return new Response(JSON.stringify({ error: 'Invalid action' }), {
+        return new Response(JSON.stringify({ error: 'Invalid action', available: ['health', 'cronSync', 'syncLatest', 'syncMangaChapters', 'syncChapterImages'] }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
