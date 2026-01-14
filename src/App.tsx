@@ -20,6 +20,7 @@ import UserProfile from "./pages/UserProfile";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -138,6 +139,16 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ChapterReader />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Admin />
+                  </MainLayout>
                 </ProtectedRoute>
               }
             />
