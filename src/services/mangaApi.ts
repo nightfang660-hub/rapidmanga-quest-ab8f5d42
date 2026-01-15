@@ -10,6 +10,16 @@ export interface Manga {
   nsfw?: boolean;
   author?: string;
   status?: string;
+  // MangaDex enriched metadata
+  mangadexId?: string;
+  altTitles?: Array<{ lang: string; title: string }>;
+  authors?: string[];
+  artists?: string[];
+  tags?: Array<{ id: string; name: string; group: string }>;
+  originalLanguage?: string;
+  publicationDemographic?: string;
+  contentRating?: string;
+  mangadexDescription?: string;
 }
 
 export interface Chapter {
@@ -52,6 +62,38 @@ const callMangaSync = async (action: string, params: Record<string, unknown>) =>
   return data;
 };
 
+const callMangaDexSync = async (action: string, params: Record<string, unknown>) => {
+  const { data, error } = await supabase.functions.invoke('mangadex-sync', {
+    body: { action, params },
+  });
+
+  if (error) {
+    console.error('MangaDex sync error:', error);
+    // Don't throw - MangaDex is optional metadata enrichment
+    return null;
+  }
+
+  return data;
+};
+
+// Transform cached manga data to include MangaDex metadata
+const transformCachedManga = (m: any): Manga => ({
+  id: m.api_id,
+  title: m.title,
+  summary: m.mangadex_description || m.description,
+  thumb: m.cover_url,
+  status: m.status,
+  mangadexId: m.mangadex_id,
+  altTitles: m.alt_titles,
+  authors: m.authors,
+  artists: m.artists,
+  tags: m.tags,
+  originalLanguage: m.original_language,
+  publicationDemographic: m.publication_demographic,
+  contentRating: m.content_rating,
+  mangadexDescription: m.mangadex_description,
+});
+
 // Check if cached data is still fresh
 const isCacheFresh = (lastFetchedAt: string | null): boolean => {
   if (!lastFetchedAt) return false;
@@ -71,22 +113,16 @@ export const mangaApi = {
       try {
         const { data: cachedManga, error } = await supabase
           .from('mangas')
-          .select('api_id, title, description, cover_url, status, last_fetched_at')
+          .select('api_id, title, description, cover_url, status, last_fetched_at, mangadex_id, alt_titles, authors, artists, tags, original_language, publication_demographic, content_rating, mangadex_description')
           .order('last_fetched_at', { ascending: false })
           .limit(20);
 
         if (!error && cachedManga && cachedManga.length > 0) {
           const firstManga = cachedManga[0];
           if (isCacheFresh(firstManga.last_fetched_at)) {
-            console.log('Using cached manga data');
+            console.log('Using cached manga data with MangaDex enrichment');
             return {
-              data: cachedManga.map(m => ({
-                id: m.api_id,
-                title: m.title,
-                summary: m.description,
-                thumb: m.cover_url,
-                status: m.status,
-              }))
+              data: cachedManga.map(transformCachedManga)
             };
           }
         }
@@ -114,24 +150,18 @@ export const mangaApi = {
   },
 
   async getManga(id: string) {
-    // Try cache first
+    // Try cache first with enriched metadata
     try {
       const { data: cachedManga, error } = await supabase
         .from('mangas')
-        .select('*')
+        .select('api_id, title, description, cover_url, status, last_fetched_at, mangadex_id, alt_titles, authors, artists, tags, original_language, publication_demographic, content_rating, mangadex_description')
         .eq('api_id', id)
         .single();
 
       if (!error && cachedManga && isCacheFresh(cachedManga.last_fetched_at)) {
-        console.log('Using cached manga details for:', id);
+        console.log('Using cached manga details with MangaDex metadata for:', id);
         return {
-          data: {
-            id: cachedManga.api_id,
-            title: cachedManga.title,
-            summary: cachedManga.description,
-            thumb: cachedManga.cover_url,
-            status: cachedManga.status,
-          }
+          data: transformCachedManga(cachedManga)
         };
       }
     } catch (cacheError) {
@@ -141,8 +171,8 @@ export const mangaApi = {
     // Fetch from API
     const data = await callMangaProxy('getManga', { id });
     
-    // Trigger background sync
-    callMangaSync('syncMangaChapters', { mangaId: id }).catch(err => 
+    // Trigger background sync (includes MangaDex enrichment)
+    callMangaSync('syncMangaChapters', { mangaId: id, enrichWithMangaDex: true }).catch(err => 
       console.log('Background chapter sync failed:', err)
     );
 
@@ -231,5 +261,18 @@ export const mangaApi = {
 
   async syncChapterImages(chapterId: string) {
     return callMangaSync('syncChapterImages', { chapterId });
+  },
+
+  // MangaDex metadata enrichment methods
+  async enrichMangaMetadata(mangaId: string) {
+    return callMangaDexSync('enrichSingle', { apiId: mangaId });
+  },
+
+  async enrichBatchMetadata(limit: number = 20) {
+    return callMangaDexSync('enrichBatch', { limit });
+  },
+
+  async getMangaDexSyncHealth() {
+    return callMangaDexSync('health', {});
   },
 };

@@ -37,6 +37,7 @@ interface CacheStats {
   totalManga: number;
   totalChapters: number;
   recentlyUpdated: number;
+  enrichedManga: number;
 }
 
 interface HealthStatus {
@@ -71,9 +72,21 @@ interface HealthStatus {
   }>;
 }
 
+interface MangaDexHealth {
+  status: string;
+  timestamp: string;
+  stats: {
+    total_manga: number;
+    enriched: number;
+    pending: number;
+    coverage: string;
+  };
+}
+
 const Admin = () => {
   const queryClient = useQueryClient();
   const [syncingLatest, setSyncingLatest] = useState(false);
+  const [enrichingBatch, setEnrichingBatch] = useState(false);
 
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const cronEndpoint = `${SUPABASE_URL}/functions/v1/manga-sync`;
@@ -91,23 +104,37 @@ const Admin = () => {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Fetch cache statistics
-  const { data: cacheStats, isLoading: loadingStats } = useQuery<CacheStats>({
+  // Fetch cache statistics with MangaDex enrichment count
+  const { data: cacheStats, isLoading: loadingStats, refetch: refetchStats } = useQuery<CacheStats>({
     queryKey: ["admin-cache-stats"],
     queryFn: async () => {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       
-      const [mangaResult, chaptersResult, recentResult] = await Promise.all([
+      const [mangaResult, chaptersResult, recentResult, enrichedResult] = await Promise.all([
         supabase.from("mangas").select("id", { count: "exact", head: true }),
         supabase.from("chapters").select("id", { count: "exact", head: true }),
         supabase.from("mangas").select("id", { count: "exact", head: true }).gte("last_fetched_at", oneHourAgo),
+        supabase.from("mangas").select("id", { count: "exact", head: true }).not("mangadex_id", "is", null),
       ]);
 
       return {
         totalManga: mangaResult.count || 0,
         totalChapters: chaptersResult.count || 0,
         recentlyUpdated: recentResult.count || 0,
+        enrichedManga: enrichedResult.count || 0,
       };
+    },
+  });
+
+  // Fetch MangaDex sync health
+  const { data: mangadexHealth, isLoading: loadingMangadex, refetch: refetchMangadex } = useQuery<MangaDexHealth>({
+    queryKey: ["admin-mangadex-health"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("mangadex-sync", {
+        body: { action: "health" },
+      });
+      if (error) throw error;
+      return data as MangaDexHealth;
     },
   });
 
@@ -202,6 +229,30 @@ const Admin = () => {
     },
   });
 
+  // MangaDex batch enrichment mutation
+  const enrichBatchMutation = useMutation({
+    mutationFn: async () => {
+      setEnrichingBatch(true);
+      const { data, error } = await supabase.functions.invoke("mangadex-sync", {
+        body: { action: "enrichBatch", params: { limit: 20 } },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      setEnrichingBatch(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-cache-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-mangadex-health"] });
+      refetchStats();
+      refetchMangadex();
+      toast.success(`MangaDex enrichment: ${data.matched}/${data.processed} matched`);
+    },
+    onError: (error) => {
+      setEnrichingBatch(false);
+      toast.error(`MangaDex enrichment failed: ${error.message}`);
+    },
+  });
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "completed":
@@ -273,6 +324,7 @@ const Admin = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="sync">Sync Controls</TabsTrigger>
+          <TabsTrigger value="mangadex">MangaDex Enrichment</TabsTrigger>
           <TabsTrigger value="cron">External Cron Setup</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
@@ -440,6 +492,67 @@ const Admin = () => {
                     </>
                   )}
                 </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="mangadex" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Database className="h-5 w-5" />
+                  MangaDex Metadata Enrichment
+                </CardTitle>
+                <CardDescription>
+                  Enrich manga with metadata from MangaDex (authors, tags, alt titles)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Enriched:</span>
+                    <span className="ml-2 font-medium">{mangadexHealth?.stats.enriched || cacheStats?.enrichedManga || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Pending:</span>
+                    <span className="ml-2 font-medium">{mangadexHealth?.stats.pending || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Coverage:</span>
+                    <span className="ml-2 font-medium">{mangadexHealth?.stats.coverage || '0%'}</span>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => enrichBatchMutation.mutate()}
+                  disabled={enrichingBatch}
+                  className="w-full"
+                >
+                  {enrichingBatch ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enriching...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Enrich Next 20 Manga
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>How It Works</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p><strong>MangaVerse</strong> = Content provider (chapters, images)</p>
+                <p><strong>MangaDex</strong> = Metadata provider (authors, tags, descriptions)</p>
+                <p>Manga is matched by normalized title comparison with 60%+ similarity threshold.</p>
+                <p>Enrichment happens automatically when new manga is synced, or manually here.</p>
               </CardContent>
             </Card>
           </div>
