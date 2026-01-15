@@ -180,38 +180,71 @@ export type Database = {
       }
       mangas: {
         Row: {
+          alt_titles: Json | null
           api_id: string
+          artists: Json | null
+          authors: Json | null
+          content_rating: string | null
           cover_url: string | null
           created_at: string | null
           description: string | null
           id: string
           last_fetched_at: string | null
           latest_chapter_number: number | null
+          mangadex_description: string | null
+          mangadex_id: string | null
+          mangadex_last_synced_at: string | null
+          normalized_title: string | null
+          original_language: string | null
+          publication_demographic: string | null
           status: string | null
+          tags: Json | null
           title: string
           updated_at: string | null
         }
         Insert: {
+          alt_titles?: Json | null
           api_id: string
+          artists?: Json | null
+          authors?: Json | null
+          content_rating?: string | null
           cover_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           last_fetched_at?: string | null
           latest_chapter_number?: number | null
+          mangadex_description?: string | null
+          mangadex_id?: string | null
+          mangadex_last_synced_at?: string | null
+          normalized_title?: string | null
+          original_language?: string | null
+          publication_demographic?: string | null
           status?: string | null
+          tags?: Json | null
           title: string
           updated_at?: string | null
         }
         Update: {
+          alt_titles?: Json | null
           api_id?: string
+          artists?: Json | null
+          authors?: Json | null
+          content_rating?: string | null
           cover_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           last_fetched_at?: string | null
           latest_chapter_number?: number | null
+          mangadex_description?: string | null
+          mangadex_id?: string | null
+          mangadex_last_synced_at?: string | null
+          normalized_title?: string | null
+          original_language?: string | null
+          publication_demographic?: string | null
           status?: string | null
+          tags?: Json | null
           title?: string
           updated_at?: string | null
         }
@@ -665,7 +698,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      normalize_manga_title: { Args: { title: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
