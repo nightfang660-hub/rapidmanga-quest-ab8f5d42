@@ -2,31 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Helper to trigger MangaDex metadata enrichment (non-blocking)
-async function triggerMangaDexEnrichment(supabaseUrl: string, mangaApiId: string) {
-  try {
-    // Call the mangadex-sync function in background
-    const response = await fetch(`${supabaseUrl}/functions/v1/mangadex-sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-      },
-      body: JSON.stringify({
-        action: 'enrichSingle',
-        params: { apiId: mangaApiId },
-      }),
-    });
-    
-    if (!response.ok) {
-      console.log(`MangaDex enrichment triggered for ${mangaApiId} (status: ${response.status})`);
-    }
-  } catch (error) {
-    // Non-blocking - log but don't throw
-    console.log(`MangaDex enrichment failed for ${mangaApiId}:`, error);
-  }
-}
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -264,19 +239,17 @@ serve(async (req) => {
         }
 
         const triggeredBy = params?.triggeredBy || 'background';
-        const enrichWithMangaDex = params?.enrichWithMangaDex !== false; // Default true
         const logId = await createSyncLog(supabase, 'chapters', triggeredBy);
 
         try {
           // Get manga from database
           const { data: mangaData } = await supabase
             .from('mangas')
-            .select('id, mangadex_id, mangadex_last_synced_at')
+            .select('id')
             .eq('api_id', mangaApiId)
             .single();
 
           let mangaUuid = mangaData?.id;
-          let needsMangaDexEnrichment = false;
 
           // If manga not in DB, fetch and insert it first
           if (!mangaUuid) {
@@ -307,15 +280,6 @@ serve(async (req) => {
               throw new Error(`Failed to insert manga: ${insertError.message}`);
             }
             mangaUuid = insertedManga.id;
-            needsMangaDexEnrichment = true;
-          } else if (mangaData) {
-            // Check if needs MangaDex enrichment
-            needsMangaDexEnrichment = !mangaData.mangadex_id && !mangaData.mangadex_last_synced_at;
-          }
-
-          // Trigger MangaDex enrichment in background (non-blocking)
-          if (enrichWithMangaDex && needsMangaDexEnrichment && SUPABASE_URL) {
-            triggerMangaDexEnrichment(SUPABASE_URL, mangaApiId);
           }
 
           // Fetch chapters from API
@@ -371,8 +335,7 @@ serve(async (req) => {
             success: true, 
             mangaId: mangaUuid,
             syncedChapters,
-            totalChapters: chapters.length,
-            mangadexEnrichmentTriggered: needsMangaDexEnrichment,
+            totalChapters: chapters.length 
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
