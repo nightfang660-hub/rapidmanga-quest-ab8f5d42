@@ -180,38 +180,71 @@ export type Database = {
       }
       mangas: {
         Row: {
+          alt_titles: Json | null
           api_id: string
+          artists: Json | null
+          authors: Json | null
+          content_rating: string | null
           cover_url: string | null
           created_at: string | null
           description: string | null
           id: string
           last_fetched_at: string | null
           latest_chapter_number: number | null
+          mangadex_description: string | null
+          mangadex_id: string | null
+          mangadex_last_synced_at: string | null
+          normalized_title: string | null
+          original_language: string | null
+          publication_demographic: string | null
           status: string | null
+          tags: Json | null
           title: string
           updated_at: string | null
         }
         Insert: {
+          alt_titles?: Json | null
           api_id: string
+          artists?: Json | null
+          authors?: Json | null
+          content_rating?: string | null
           cover_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           last_fetched_at?: string | null
           latest_chapter_number?: number | null
+          mangadex_description?: string | null
+          mangadex_id?: string | null
+          mangadex_last_synced_at?: string | null
+          normalized_title?: string | null
+          original_language?: string | null
+          publication_demographic?: string | null
           status?: string | null
+          tags?: Json | null
           title: string
           updated_at?: string | null
         }
         Update: {
+          alt_titles?: Json | null
           api_id?: string
+          artists?: Json | null
+          authors?: Json | null
+          content_rating?: string | null
           cover_url?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
           last_fetched_at?: string | null
           latest_chapter_number?: number | null
+          mangadex_description?: string | null
+          mangadex_id?: string | null
+          mangadex_last_synced_at?: string | null
+          normalized_title?: string | null
+          original_language?: string | null
+          publication_demographic?: string | null
           status?: string | null
+          tags?: Json | null
           title?: string
           updated_at?: string | null
         }
@@ -516,6 +549,66 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_logs: {
+        Row: {
+          chapter_count: number | null
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          manga_count: number | null
+          started_at: string | null
+          status: string
+          sync_type: string
+          triggered_by: string | null
+        }
+        Insert: {
+          chapter_count?: number | null
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          manga_count?: number | null
+          started_at?: string | null
+          status?: string
+          sync_type: string
+          triggered_by?: string | null
+        }
+        Update: {
+          chapter_count?: number | null
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          manga_count?: number | null
+          started_at?: string | null
+          status?: string
+          sync_type?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
+      sync_settings: {
+        Row: {
+          cron_enabled: boolean | null
+          cron_interval_minutes: number | null
+          id: string
+          last_cron_run: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cron_enabled?: boolean | null
+          cron_interval_minutes?: number | null
+          id?: string
+          last_cron_run?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cron_enabled?: boolean | null
+          cron_interval_minutes?: number | null
+          id?: string
+          last_cron_run?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       typing_status: {
         Row: {
           chat_partner_id: string
@@ -605,7 +698,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      normalize_manga_title: { Args: { title: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
