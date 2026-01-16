@@ -36,6 +36,20 @@ export interface ChapterImage {
 // Cache duration in milliseconds (1 hour)
 const CACHE_DURATION = 60 * 60 * 1000;
 
+const isRateLimitedError = (err: any) => {
+  const msg = String(err?.message || "").toLowerCase();
+  const status = err?.status ?? err?.context?.status;
+  const body = err?.context?.body;
+  const bodyStr = typeof body === "string" ? body : JSON.stringify(body || "");
+
+  return (
+    status === 429 ||
+    msg.includes("429") ||
+    msg.includes("too many requests") ||
+    bodyStr.toLowerCase().includes("too many requests")
+  );
+};
+
 const callMangaProxy = async (action: string, params: Record<string, unknown>) => {
   const { data, error } = await supabase.functions.invoke('manga-proxy', {
     body: { action, params },
@@ -43,8 +57,7 @@ const callMangaProxy = async (action: string, params: Record<string, unknown>) =
 
   if (error) {
     console.error('Manga proxy error:', error);
-    // Check if it's a rate limit error (429)
-    if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+    if (isRateLimitedError(error)) {
       throw new Error('RATE_LIMITED');
     }
     throw new Error(error.message || 'Failed to fetch from manga API');
