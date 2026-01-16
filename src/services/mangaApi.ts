@@ -43,6 +43,10 @@ const callMangaProxy = async (action: string, params: Record<string, unknown>) =
 
   if (error) {
     console.error('Manga proxy error:', error);
+    // Check if it's a rate limit error (429)
+    if (error.message?.includes('429') || error.message?.includes('rate limit')) {
+      throw new Error('RATE_LIMITED');
+    }
     throw new Error(error.message || 'Failed to fetch from manga API');
   }
 
@@ -103,54 +107,111 @@ const isCacheFresh = (lastFetchedAt: string | null): boolean => {
 
 export const mangaApi = {
   async fetchManga(page: number = 1, genres?: string, nsfw: boolean = false, type: string = "all") {
-    // For paginated lists, always fetch from API (caching individual pages is complex)
-    return callMangaProxy('fetch', { page, genres, nsfw, type });
+    // Try cache first for all pages
+    try {
+      const offset = (page - 1) * 20;
+      const { data: cachedManga, error } = await supabase
+        .from('mangas')
+        .select('api_id, title, description, cover_url, status, last_fetched_at, mangadex_id, alt_titles, authors, artists, tags, original_language, publication_demographic, content_rating, mangadex_description')
+        .order('last_fetched_at', { ascending: false })
+        .range(offset, offset + 19);
+
+      if (!error && cachedManga && cachedManga.length > 0) {
+        console.log('Using cached manga data for page:', page);
+        return {
+          data: cachedManga.map(transformCachedManga)
+        };
+      }
+    } catch (cacheError) {
+      console.log('Cache check failed:', cacheError);
+    }
+
+    // Fallback to API
+    try {
+      return await callMangaProxy('fetch', { page, genres, nsfw, type });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RATE_LIMITED') {
+        console.log('Rate limited, returning empty data');
+        return { data: [] };
+      }
+      throw error;
+    }
   },
 
   async fetchLatest(page: number = 1, genres?: string, nsfw: boolean = false, type: string = "all") {
-    // Try to get from cache for first page only
-    if (page === 1 && !genres) {
-      try {
-        const { data: cachedManga, error } = await supabase
-          .from('mangas')
-          .select('api_id, title, description, cover_url, status, last_fetched_at, mangadex_id, alt_titles, authors, artists, tags, original_language, publication_demographic, content_rating, mangadex_description')
-          .order('last_fetched_at', { ascending: false })
-          .limit(20);
+    // Always try cache first
+    try {
+      const offset = (page - 1) * 20;
+      const { data: cachedManga, error } = await supabase
+        .from('mangas')
+        .select('api_id, title, description, cover_url, status, last_fetched_at, mangadex_id, alt_titles, authors, artists, tags, original_language, publication_demographic, content_rating, mangadex_description')
+        .order('last_fetched_at', { ascending: false })
+        .range(offset, offset + 19);
 
-        if (!error && cachedManga && cachedManga.length > 0) {
-          const firstManga = cachedManga[0];
-          if (isCacheFresh(firstManga.last_fetched_at)) {
-            console.log('Using cached manga data with MangaDex enrichment');
-            return {
-              data: cachedManga.map(transformCachedManga)
-            };
-          }
-        }
-      } catch (cacheError) {
-        console.log('Cache check failed, falling back to API:', cacheError);
+      if (!error && cachedManga && cachedManga.length > 0) {
+        console.log('Using cached manga data with MangaDex enrichment, page:', page);
+        return {
+          data: cachedManga.map(transformCachedManga)
+        };
       }
+    } catch (cacheError) {
+      console.log('Cache check failed, falling back to API:', cacheError);
     }
 
-    // Fetch from API
-    const data = await callMangaProxy('latest', { page, genres, nsfw, type });
-    
-    // Trigger background sync for first page
-    if (page === 1 && !genres) {
-      callMangaSync('syncLatest', { page: 1 }).catch(err => 
-        console.log('Background sync failed:', err)
-      );
-    }
+    // Fetch from API only if cache is empty
+    try {
+      const data = await callMangaProxy('latest', { page, genres, nsfw, type });
+      
+      // Trigger background sync for first page
+      if (page === 1 && !genres) {
+        callMangaSync('syncLatest', { page: 1 }).catch(err => 
+          console.log('Background sync failed:', err)
+        );
+      }
 
-    return data;
+      return data;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RATE_LIMITED') {
+        console.log('Rate limited, returning empty data');
+        return { data: [] };
+      }
+      throw error;
+    }
   },
 
   async searchManga(text: string, nsfw: boolean = false, type: string = "all") {
-    // Search is always real-time from API
-    return callMangaProxy('search', { text, nsfw, type });
+    // Try local search first
+    try {
+      const { data: cachedResults, error } = await supabase
+        .from('mangas')
+        .select('api_id, title, description, cover_url, status, last_fetched_at, mangadex_id, alt_titles, authors, artists, tags, original_language, publication_demographic, content_rating, mangadex_description')
+        .ilike('title', `%${text}%`)
+        .limit(20);
+
+      if (!error && cachedResults && cachedResults.length > 0) {
+        console.log('Using cached search results for:', text);
+        return {
+          data: cachedResults.map(transformCachedManga)
+        };
+      }
+    } catch (cacheError) {
+      console.log('Local search failed:', cacheError);
+    }
+
+    // Fallback to API
+    try {
+      return await callMangaProxy('search', { text, nsfw, type });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RATE_LIMITED') {
+        console.log('Rate limited on search');
+        return { data: [] };
+      }
+      throw error;
+    }
   },
 
   async getManga(id: string) {
-    // Try cache first with enriched metadata
+    // Try cache first with enriched metadata (use cache even if stale to avoid rate limits)
     try {
       const { data: cachedManga, error } = await supabase
         .from('mangas')
@@ -158,8 +219,14 @@ export const mangaApi = {
         .eq('api_id', id)
         .single();
 
-      if (!error && cachedManga && isCacheFresh(cachedManga.last_fetched_at)) {
-        console.log('Using cached manga details with MangaDex metadata for:', id);
+      if (!error && cachedManga) {
+        console.log('Using cached manga details for:', id);
+        // Trigger background refresh if stale
+        if (!isCacheFresh(cachedManga.last_fetched_at)) {
+          callMangaSync('syncMangaChapters', { mangaId: id, enrichWithMangaDex: true }).catch(err => 
+            console.log('Background chapter sync failed:', err)
+          );
+        }
         return {
           data: transformCachedManga(cachedManga)
         };
@@ -168,19 +235,27 @@ export const mangaApi = {
       console.log('Cache check failed for manga:', cacheError);
     }
 
-    // Fetch from API
-    const data = await callMangaProxy('getManga', { id });
-    
-    // Trigger background sync (includes MangaDex enrichment)
-    callMangaSync('syncMangaChapters', { mangaId: id, enrichWithMangaDex: true }).catch(err => 
-      console.log('Background chapter sync failed:', err)
-    );
+    // Fetch from API only if not in cache
+    try {
+      const data = await callMangaProxy('getManga', { id });
+      
+      // Trigger background sync (includes MangaDex enrichment)
+      callMangaSync('syncMangaChapters', { mangaId: id, enrichWithMangaDex: true }).catch(err => 
+        console.log('Background chapter sync failed:', err)
+      );
 
-    return data;
+      return data;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RATE_LIMITED') {
+        console.log('Rate limited on getManga');
+        return { data: null };
+      }
+      throw error;
+    }
   },
 
   async fetchChapters(id: string) {
-    // Try cache first
+    // Try cache first (always prefer cache to avoid rate limits)
     try {
       const { data: manga } = await supabase
         .from('mangas')
@@ -188,7 +263,7 @@ export const mangaApi = {
         .eq('api_id', id)
         .single();
 
-      if (manga && isCacheFresh(manga.last_fetched_at)) {
+      if (manga) {
         const { data: cachedChapters, error } = await supabase
           .from('chapters')
           .select('api_id, chapter_number, title, release_date')
@@ -197,6 +272,12 @@ export const mangaApi = {
 
         if (!error && cachedChapters && cachedChapters.length > 0) {
           console.log('Using cached chapters for manga:', id);
+          // Trigger background refresh if stale
+          if (!isCacheFresh(manga.last_fetched_at)) {
+            callMangaSync('syncMangaChapters', { mangaId: id }).catch(err => 
+              console.log('Background chapter sync failed:', err)
+            );
+          }
           return {
             data: cachedChapters.map(c => ({
               id: c.api_id,
@@ -211,15 +292,23 @@ export const mangaApi = {
       console.log('Cache check failed for chapters:', cacheError);
     }
 
-    // Fetch from API
-    const data = await callMangaProxy('fetchChapters', { id });
-    
-    // Trigger background sync
-    callMangaSync('syncMangaChapters', { mangaId: id }).catch(err => 
-      console.log('Background chapter sync failed:', err)
-    );
+    // Fetch from API only if no cache
+    try {
+      const data = await callMangaProxy('fetchChapters', { id });
+      
+      // Trigger background sync
+      callMangaSync('syncMangaChapters', { mangaId: id }).catch(err => 
+        console.log('Background chapter sync failed:', err)
+      );
 
-    return data;
+      return data;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RATE_LIMITED') {
+        console.log('Rate limited on fetchChapters');
+        return { data: [] };
+      }
+      throw error;
+    }
   },
 
   async fetchChapterImages(id: string) {
@@ -240,14 +329,22 @@ export const mangaApi = {
     }
 
     // Fetch from API
-    const data = await callMangaProxy('fetchChapterImages', { id });
-    
-    // Trigger background sync to cache images
-    callMangaSync('syncChapterImages', { chapterId: id }).catch(err => 
-      console.log('Background image sync failed:', err)
-    );
+    try {
+      const data = await callMangaProxy('fetchChapterImages', { id });
+      
+      // Trigger background sync to cache images
+      callMangaSync('syncChapterImages', { chapterId: id }).catch(err => 
+        console.log('Background image sync failed:', err)
+      );
 
-    return data;
+      return data;
+    } catch (error) {
+      if (error instanceof Error && error.message === 'RATE_LIMITED') {
+        console.log('Rate limited on fetchChapterImages');
+        return { data: [] };
+      }
+      throw error;
+    }
   },
 
   // Manual sync methods for admin use
