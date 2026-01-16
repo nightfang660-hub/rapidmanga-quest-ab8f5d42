@@ -516,66 +516,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sync_logs: {
-        Row: {
-          chapter_count: number | null
-          completed_at: string | null
-          error_message: string | null
-          id: string
-          manga_count: number | null
-          started_at: string | null
-          status: string
-          sync_type: string
-          triggered_by: string | null
-        }
-        Insert: {
-          chapter_count?: number | null
-          completed_at?: string | null
-          error_message?: string | null
-          id?: string
-          manga_count?: number | null
-          started_at?: string | null
-          status?: string
-          sync_type: string
-          triggered_by?: string | null
-        }
-        Update: {
-          chapter_count?: number | null
-          completed_at?: string | null
-          error_message?: string | null
-          id?: string
-          manga_count?: number | null
-          started_at?: string | null
-          status?: string
-          sync_type?: string
-          triggered_by?: string | null
-        }
-        Relationships: []
-      }
-      sync_settings: {
-        Row: {
-          cron_enabled: boolean | null
-          cron_interval_minutes: number | null
-          id: string
-          last_cron_run: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          cron_enabled?: boolean | null
-          cron_interval_minutes?: number | null
-          id?: string
-          last_cron_run?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          cron_enabled?: boolean | null
-          cron_interval_minutes?: number | null
-          id?: string
-          last_cron_run?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       typing_status: {
         Row: {
           chat_partner_id: string
