@@ -8,10 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { RefreshCw, Database, Clock, CheckCircle2, XCircle, Loader2, Play, Settings, Activity, Copy, ExternalLink, AlertTriangle } from "lucide-react";
+import { RefreshCw, Database, Clock, CheckCircle2, XCircle, Loader2, Play, Settings } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface SyncLog {
   id: string;
@@ -39,57 +37,9 @@ interface CacheStats {
   recentlyUpdated: number;
 }
 
-interface HealthStatus {
-  status: string;
-  timestamp: string;
-  config: {
-    api_key: boolean;
-    supabase_url: boolean;
-    supabase_service_key: boolean;
-  };
-  database: {
-    manga_count: number;
-    chapter_count: number;
-  };
-  sync: {
-    cron_enabled: boolean;
-    cron_interval_minutes: number;
-    last_cron_run: string | null;
-    last_sync_status: string;
-    last_sync_time: string | null;
-    last_sync_age_minutes: number | null;
-  };
-  recent_syncs: Array<{
-    id: string;
-    type: string;
-    status: string;
-    manga_count: number;
-    chapter_count: number;
-    started_at: string;
-    completed_at: string;
-    error: string | null;
-  }>;
-}
-
 const Admin = () => {
   const queryClient = useQueryClient();
   const [syncingLatest, setSyncingLatest] = useState(false);
-
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-  const cronEndpoint = `${SUPABASE_URL}/functions/v1/manga-sync`;
-
-  // Fetch health status
-  const { data: healthStatus, isLoading: loadingHealth, refetch: refetchHealth } = useQuery<HealthStatus>({
-    queryKey: ["admin-health-status"],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("manga-sync", {
-        body: { action: "health" },
-      });
-      if (error) throw error;
-      return data as HealthStatus;
-    },
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
 
   // Fetch cache statistics
   const { data: cacheStats, isLoading: loadingStats } = useQuery<CacheStats>({
@@ -228,370 +178,201 @@ const Admin = () => {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
-  };
-
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Admin Panel</h1>
-          <p className="text-muted-foreground">Manage manga sync, health status, and automation</p>
+          <p className="text-muted-foreground">Manage manga sync and cache status</p>
         </div>
-        <Button variant="outline" onClick={() => refetchHealth()} disabled={loadingHealth}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${loadingHealth ? 'animate-spin' : ''}`} />
-          Refresh Status
-        </Button>
       </div>
 
-      {/* Health Status Banner */}
-      {healthStatus && (
-        <Alert variant={healthStatus.status === 'healthy' ? 'default' : 'destructive'}>
-          {healthStatus.status === 'healthy' ? (
-            <CheckCircle2 className="h-4 w-4" />
-          ) : (
-            <AlertTriangle className="h-4 w-4" />
-          )}
-          <AlertTitle className="flex items-center gap-2">
-            System Status: {healthStatus.status.toUpperCase()}
-          </AlertTitle>
-          <AlertDescription>
-            Last sync: {healthStatus.sync.last_sync_time 
-              ? formatDistanceToNow(new Date(healthStatus.sync.last_sync_time), { addSuffix: true })
-              : 'Never'
-            }
-            {healthStatus.sync.last_sync_age_minutes !== null && (
-              <span> ({healthStatus.sync.last_sync_age_minutes} minutes ago)</span>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Cache Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Cached Manga
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loadingStats ? "..." : cacheStats?.totalManga || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Total manga in database</p>
+          </CardContent>
+        </Card>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="sync">Sync Controls</TabsTrigger>
-          <TabsTrigger value="cron">External Cron Setup</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-        </TabsList>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Cached Chapters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loadingStats ? "..." : cacheStats?.totalChapters || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Total chapters in database</p>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="overview" className="space-y-4">
-          {/* Cache Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  Cached Manga
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loadingStats ? "..." : cacheStats?.totalManga || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">Total manga in database</p>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Recently Updated
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loadingStats ? "..." : cacheStats?.recentlyUpdated || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">Updated in last hour</p>
+          </CardContent>
+        </Card>
+      </div>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  Cached Chapters
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loadingStats ? "..." : cacheStats?.totalChapters || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">Total chapters in database</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Recently Updated
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {loadingStats ? "..." : cacheStats?.recentlyUpdated || 0}
-                </div>
-                <p className="text-xs text-muted-foreground">Updated in last hour</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Activity className="h-4 w-4" />
-                  Config Status
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs">
-                    {healthStatus?.config.api_key ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <XCircle className="h-3 w-3 text-destructive" />
-                    )}
-                    <span>API Key</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs">
-                    {healthStatus?.config.supabase_service_key ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
-                    ) : (
-                      <XCircle className="h-3 w-3 text-destructive" />
-                    )}
-                    <span>Service Key</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="sync" className="space-y-4">
-          {/* Sync Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Play className="h-5 w-5" />
-                  Manual Sync
-                </CardTitle>
-                <CardDescription>
-                  Trigger a manual sync of the latest manga from the API
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button
-                  onClick={() => syncLatestMutation.mutate()}
-                  disabled={syncingLatest}
-                  className="w-full"
-                >
-                  {syncingLatest ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Sync Latest Manga
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Scheduled Sync
-                </CardTitle>
-                <CardDescription>
-                  Configure automatic syncing every hour
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="cron-enabled" className="flex flex-col gap-1">
-                    <span>Enable Hourly Sync</span>
-                    <span className="text-xs text-muted-foreground font-normal">
-                      Automatically sync manga every hour
-                    </span>
-                  </Label>
-                  <Switch
-                    id="cron-enabled"
-                    checked={syncSettings?.cron_enabled || false}
-                    onCheckedChange={(checked) => updateSettingsMutation.mutate(checked)}
-                    disabled={loadingSettings}
-                  />
-                </div>
-                
-                {syncSettings?.last_cron_run && (
-                  <p className="text-sm text-muted-foreground">
-                    Last cron run: {formatDistanceToNow(new Date(syncSettings.last_cron_run), { addSuffix: true })}
-                  </p>
-                )}
-
-                <Button
-                  variant="outline"
-                  onClick={() => triggerCronMutation.mutate()}
-                  disabled={triggerCronMutation.isPending}
-                  className="w-full"
-                >
-                  {triggerCronMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Running...
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="mr-2 h-4 w-4" />
-                      Trigger Cron Now
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="cron" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ExternalLink className="h-5 w-5" />
-                External Cron Setup
-              </CardTitle>
-              <CardDescription>
-                Lovable Cloud doesn't have native pg_cron. Use an external scheduler to trigger syncs.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <h4 className="font-medium">Option 1: cron-job.org (Free)</h4>
-                <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
-                  <li>Go to <a href="https://cron-job.org" target="_blank" rel="noopener noreferrer" className="text-primary underline">cron-job.org</a> and create a free account</li>
-                  <li>Create a new cron job with these settings:</li>
-                </ol>
-                <div className="bg-muted rounded-lg p-4 space-y-3">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">URL (POST)</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="flex-1 text-xs bg-background p-2 rounded border overflow-x-auto">
-                        {cronEndpoint}
-                      </code>
-                      <Button size="sm" variant="outline" onClick={() => copyToClipboard(cronEndpoint)}>
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Request Body (JSON)</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="flex-1 text-xs bg-background p-2 rounded border">
-                        {`{"action": "cronSync"}`}
-                      </code>
-                      <Button size="sm" variant="outline" onClick={() => copyToClipboard('{"action": "cronSync"}')}>
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Headers</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="flex-1 text-xs bg-background p-2 rounded border">
-                        Content-Type: application/json
-                      </code>
-                      <Button size="sm" variant="outline" onClick={() => copyToClipboard('Content-Type: application/json')}>
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Schedule</Label>
-                    <p className="text-xs text-muted-foreground mt-1">Every hour: <code className="bg-background px-1 rounded">0 * * * *</code></p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-medium">Option 2: GitHub Actions (Free)</h4>
-                <p className="text-sm text-muted-foreground">Add this workflow to your GitHub repo:</p>
-                <div className="bg-muted rounded-lg p-4">
-                  <pre className="text-xs overflow-x-auto">{`# .github/workflows/manga-sync.yml
-name: Manga Sync
-on:
-  schedule:
-    - cron: '0 * * * *'  # Every hour
-  workflow_dispatch:      # Manual trigger
-
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger sync
-        run: |
-          curl -X POST "${cronEndpoint}" \\
-            -H "Content-Type: application/json" \\
-            -d '{"action": "cronSync"}'`}</pre>
-                </div>
-              </div>
-
-              <Alert>
-                <Activity className="h-4 w-4" />
-                <AlertTitle>Health Endpoint</AlertTitle>
-                <AlertDescription>
-                  Monitor your sync status at: <code className="text-xs bg-muted px-1 rounded">{cronEndpoint}</code> with <code className="text-xs bg-muted px-1 rounded">{`{"action": "health"}`}</code>
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history" className="space-y-4">
-          {/* Sync History */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Sync History
-              </CardTitle>
-              <CardDescription>Recent sync operations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingLogs ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                </div>
-              ) : syncLogs && syncLogs.length > 0 ? (
-                <div className="space-y-3">
-                  {syncLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                    >
-                      <div className="flex items-center gap-3">
-                        {getStatusIcon(log.status)}
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium capitalize">{log.sync_type}</span>
-                            {getStatusBadge(log.status)}
-                            <Badge variant="outline" className="text-xs">
-                              {log.triggered_by}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(log.started_at), { addSuffix: true })}
-                            {log.manga_count > 0 && ` • ${log.manga_count} manga`}
-                            {log.chapter_count > 0 && ` • ${log.chapter_count} chapters`}
-                          </p>
-                          {log.error_message && (
-                            <p className="text-xs text-destructive mt-1">{log.error_message}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      {/* Sync Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5" />
+              Manual Sync
+            </CardTitle>
+            <CardDescription>
+              Trigger a manual sync of the latest manga from the API
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button
+              onClick={() => syncLatestMutation.mutate()}
+              disabled={syncingLatest}
+              className="w-full"
+            >
+              {syncingLatest ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Syncing...
+                </>
               ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  No sync history yet. Run a sync to see logs here.
-                </p>
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Sync Latest Manga
+                </>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Scheduled Sync
+            </CardTitle>
+            <CardDescription>
+              Configure automatic syncing every hour
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="cron-enabled" className="flex flex-col gap-1">
+                <span>Enable Hourly Sync</span>
+                <span className="text-xs text-muted-foreground font-normal">
+                  Automatically sync manga every hour
+                </span>
+              </Label>
+              <Switch
+                id="cron-enabled"
+                checked={syncSettings?.cron_enabled || false}
+                onCheckedChange={(checked) => updateSettingsMutation.mutate(checked)}
+                disabled={loadingSettings}
+              />
+            </div>
+            
+            {syncSettings?.last_cron_run && (
+              <p className="text-sm text-muted-foreground">
+                Last cron run: {formatDistanceToNow(new Date(syncSettings.last_cron_run), { addSuffix: true })}
+              </p>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => triggerCronMutation.mutate()}
+              disabled={triggerCronMutation.isPending}
+              className="w-full"
+            >
+              {triggerCronMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Running...
+                </>
+              ) : (
+                <>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Trigger Cron Now
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sync History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Sync History
+          </CardTitle>
+          <CardDescription>Recent sync operations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadingLogs ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : syncLogs && syncLogs.length > 0 ? (
+            <div className="space-y-3">
+              {syncLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                >
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(log.status)}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium capitalize">{log.sync_type}</span>
+                        {getStatusBadge(log.status)}
+                        <Badge variant="outline" className="text-xs">
+                          {log.triggered_by}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(log.started_at), { addSuffix: true })}
+                        {log.manga_count > 0 && ` • ${log.manga_count} manga`}
+                        {log.chapter_count > 0 && ` • ${log.chapter_count} chapters`}
+                      </p>
+                      {log.error_message && (
+                        <p className="text-xs text-destructive mt-1">{log.error_message}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-8">
+              No sync history yet. Run a sync to see logs here.
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
