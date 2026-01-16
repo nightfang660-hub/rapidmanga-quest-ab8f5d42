@@ -4,18 +4,20 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
 const API_BASE_URL = "https://mangaverse-api.p.rapidapi.com";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const API_KEY = Deno.env.get('RAPIDAPI_KEY');
+    const API_HOST = "mangaverse-api.p.rapidapi.com";
+    
     if (!API_KEY) {
       console.error('RAPIDAPI_KEY not configured');
       return new Response(JSON.stringify({ error: 'API key not configured' }), {
@@ -29,8 +31,44 @@ serve(async (req) => {
 
     const headers = {
       "x-rapidapi-key": API_KEY,
-      "x-rapidapi-host": "mangaverse-api.p.rapidapi.com",
+      "x-rapidapi-host": API_HOST,
     };
+
+    // Handle image proxy with long cache
+    if (action === 'proxyImage') {
+      if (!params?.id) {
+        return new Response(JSON.stringify({ error: 'Missing id' }), { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+      
+      const infoUrl = `${API_BASE_URL}/manga?id=${params.id}`;
+      const infoRes = await fetch(infoUrl, { headers });
+      if (!infoRes.ok) throw new Error('Failed to fetch manga info');
+      const infoData = await infoRes.json();
+      const signedUrl = infoData.data?.thumb;
+      if (!signedUrl) {
+        return new Response(JSON.stringify({ error: 'Image not found' }), { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+      const imageRes = await fetch(signedUrl);
+      if (!imageRes.ok) {
+        return new Response(JSON.stringify({ error: 'Failed to fetch image' }), { 
+          status: 502, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
+      }
+      return new Response(imageRes.body, { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': imageRes.headers.get('content-type') || 'image/jpeg',
+          'Cache-Control': 'public, max-age=86400, s-maxage=86400'
+        } 
+      });
+    }
 
     let endpoint = '';
     const queryParams = new URLSearchParams();
@@ -82,7 +120,10 @@ serve(async (req) => {
     
     if (!response.ok) {
       console.error(`API error: ${response.status} ${response.statusText}`);
-      return new Response(JSON.stringify({ error: `API error: ${response.statusText}` }), {
+      let errorMessage = `API error: ${response.statusText}`;
+      if (response.status === 401 || response.status === 403) errorMessage = "Invalid API Key";
+      if (response.status === 429) errorMessage = "Rate Limited - please try again later";
+      return new Response(JSON.stringify({ error: errorMessage }), {
         status: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -91,8 +132,13 @@ serve(async (req) => {
     const data = await response.json();
     console.log(`Successfully fetched ${action}`);
 
+    // Cache responses: 10 min browser, 1 hr CDN to reduce API calls
     return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { 
+        ...corsHeaders, 
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=600, s-maxage=3600'
+      },
     });
   } catch (error) {
     console.error('Error in manga-proxy:', error);
