@@ -16,6 +16,10 @@ serve(async (req) => {
 
   try {
     const API_KEY = Deno.env.get('RAPIDAPI_KEY');
+    
+    // Debug: Log if API key exists (not the value)
+    console.log(`API Key configured: ${!!API_KEY}, Length: ${API_KEY?.length || 0}`);
+    
     if (!API_KEY) {
       console.error('RAPIDAPI_KEY not configured');
       return new Response(JSON.stringify({ error: 'API key not configured' }), {
@@ -28,8 +32,8 @@ serve(async (req) => {
     console.log(`Manga proxy request: action=${action}`, params);
 
     const headers = {
-      "x-rapidapi-key": API_KEY,
-      "x-rapidapi-host": "mangaverse-api.p.rapidapi.com",
+      "X-RapidAPI-Key": API_KEY,
+      "X-RapidAPI-Host": "mangaverse-api.p.rapidapi.com",
     };
 
     let endpoint = '';
@@ -80,9 +84,35 @@ serve(async (req) => {
 
     const response = await fetch(url, { headers });
     
+    // Debug: Log full response status
+    console.log(`RapidAPI response: status=${response.status}, statusText=${response.statusText}`);
+    
     if (!response.ok) {
-      console.error(`API error: ${response.status} ${response.statusText}`);
-      return new Response(JSON.stringify({ error: `API error: ${response.statusText}` }), {
+      // Provide specific error messages for different status codes
+      let errorMessage = `API error: ${response.statusText}`;
+      
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = 'Invalid API Key - Please verify your RAPIDAPI_KEY is correct and you are subscribed to the MangaVerse API';
+        console.error(`AUTH ERROR (${response.status}): ${errorMessage}`);
+      } else if (response.status === 429) {
+        errorMessage = 'Rate Limited by RapidAPI - You have exceeded your API quota';
+        console.error(`RATE LIMIT (429): ${errorMessage}`);
+      } else {
+        console.error(`API error: ${response.status} ${response.statusText}`);
+      }
+      
+      // Try to get response body for more details
+      try {
+        const errorBody = await response.text();
+        console.error(`Error body: ${errorBody}`);
+      } catch (e) {
+        // Ignore if we can't read body
+      }
+      
+      return new Response(JSON.stringify({ 
+        error: errorMessage,
+        status: response.status 
+      }), {
         status: response.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
