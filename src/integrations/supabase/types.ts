@@ -513,6 +513,77 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_rooms: {
+        Row: {
+          code: string | null
+          created_at: string
+          current_chapter_id: string | null
+          current_page_index: number | null
+          host_id: string
+          id: string
+          is_active: boolean | null
+          manga_cover: string | null
+          manga_id: string
+          manga_title: string | null
+          mode: string | null
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          current_chapter_id?: string | null
+          current_page_index?: number | null
+          host_id: string
+          id?: string
+          is_active?: boolean | null
+          manga_cover?: string | null
+          manga_id: string
+          manga_title?: string | null
+          mode?: string | null
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          current_chapter_id?: string | null
+          current_page_index?: number | null
+          host_id?: string
+          id?: string
+          is_active?: boolean | null
+          manga_cover?: string | null
+          manga_id?: string
+          manga_title?: string | null
+          mode?: string | null
+        }
+        Relationships: []
+      }
+      room_participants: {
+        Row: {
+          id: string
+          joined_at: string
+          room_id: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          room_id?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          room_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "reading_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shared_recommendations: {
         Row: {
           created_at: string
